@@ -102,6 +102,12 @@
     input.focus();
   }
 
+  // Let the host page drive the widget (e.g. "try it" chips in a hero).
+  window.AnchorWidget = {
+    open: openPanel,
+    ask: function (text) { openPanel(); send(text); },
+  };
+
   function renderChips() {
     chips.innerHTML = "";
     suggested.forEach(function (q) {
