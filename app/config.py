@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     # retrieved sources don't actually answer the question.
     min_confidence: float = 0.15
     max_tool_iterations: int = 4
+    # Per-source char budget when formatting retrieved chunks into the prompt.
+    # Must comfortably exceed a chunk so we don't drop the tail of a doc (the
+    # Day 3 eval caught 800 cutting off answer details near the end of sources).
+    source_char_budget: int = 1600
 
     # --- Mock CRM (tool action sink) ----------------------------------------
     crm_dir: str = "data/crm"

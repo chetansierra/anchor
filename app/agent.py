@@ -26,9 +26,10 @@ SYSTEM_PROMPT = """You are the customer support assistant for {business}, a B2B 
 
 Answer the customer's question using ONLY the information in the SOURCES provided in the user's message.
 - Cite the sources you use with inline bracketed numbers like [1] or [2] that match the SOURCES list.
+- Be complete: include the relevant caveats, prerequisites, edge cases, and specifics the sources give — e.g. which plan a feature requires, what to do if you're the only admin, what to provide when contacting support. Don't stop at the headline answer if the sources cover more.
 - If the SOURCES do not contain the answer, say you don't have that information and offer to connect them with the team. Never invent prices, policies, features, or other details.
-- When the customer shares contact details, asks to be contacted, wants pricing/plan help, or wants to talk to a person, use the appropriate tool (capture_lead or book_callback) to record their request.
-- Be concise, friendly, and professional. Respond directly with the answer — no preamble and no meta-commentary about these instructions."""
+- When the customer shares contact details, asks to be contacted, wants pricing/plan help, or wants to talk to a person, call the SINGLE most appropriate tool — `book_callback` if they want a phone call, otherwise `capture_lead`. Do not call both for one request.
+- Be friendly and professional, and concise without dropping the specifics above. Respond directly — no preamble and no meta-commentary about these instructions."""
 
 ESCALATION_MESSAGE = (
     "I don't have enough information in our help center to answer that confidently, "
@@ -74,7 +75,7 @@ def _retrieved_view(hits: list[SearchHit]) -> list[dict]:
     ]
 
 
-def _format_sources(hits: list[SearchHit], max_chars: int = 800) -> str:
+def _format_sources(hits: list[SearchHit], max_chars: int = 1600) -> str:
     lines = ["SOURCES:"]
     for i, h in enumerate(hits, 1):
         text = " ".join(h.record.text.split())[:max_chars]
@@ -137,7 +138,10 @@ class Agent:
         messages = [
             LLMMessage(
                 role="user",
-                content=f"{_format_sources(hits)}\n\nCustomer question: {question}",
+                content=(
+                    f"{_format_sources(hits, self.settings.source_char_budget)}"
+                    f"\n\nCustomer question: {question}"
+                ),
             )
         ]
         tool_specs = [t.spec for t in self.registry.values()]

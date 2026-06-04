@@ -93,6 +93,58 @@ OpenAI/Gemini SDKs are optional: `pip install -r requirements-optional.txt`.
 another writes a row to the mock CRM (`/leads`). All covered by `make test`,
 keyless.
 
+## Day 3 — Eval harness (done) · *the differentiator*
+
+The numbers most freelancers never show. A labeled set of **41 cases**
+(answerable, out-of-scope-should-refuse, and tool-action) is scored on four axes
+— retrieval hit-rate, answer correctness (**LLM-as-judge** vs. a rubric),
+refusal correctness, and tool-call correctness — via one command:
+
+```bash
+make eval                                    # full report on the configured provider
+python -m scripts.eval_cli ans-2fa-2 ans-sso-2   # re-run specific case ids (cheap)
+```
+
+```
+app/eval/
+  dataset.py  # load the labeled JSONL
+  judge.py    # provider-agnostic LLM-as-judge (PASS/FAIL + reason)
+  scorer.py   # per-category scoring (answer / refusal / tool / retrieval)
+  runner.py   # aggregate + format report
+data/eval/dataset.jsonl   # the 41 labeled cases
+```
+
+### Scorecard — Sonnet 4.6, 41 cases
+
+| Metric | Result |
+|---|---|
+| **Overall accuracy** | **92.7%** (38/41) |
+| Retrieval hit@k | **100%** |
+| Answer correctness (answerable) | 24/27 → **27/27** after fixes |
+| Refusal correctness (out-of-scope) | **8/8** |
+| Tool-call correctness (action) | **6/6** |
+| Cost / full run | ~**$0.39** (agent $0.33 + judge $0.05), 271s |
+
+### 3 fixes the eval drove
+Every one of the 3 misses had **100% retrieval** — the right doc was found, but
+the answer dropped a detail. Root cause and fixes:
+
+1. **Context truncation.** Sources were truncated to 800 chars, cutting the tail
+   of each doc — exactly where *"an admin can reset 2FA"*, *"SSO disables
+   password login"*, and *"contact support with your invoice number"* lived.
+   Raised the per-source budget so full chunks reach the model.
+2. **Completeness instruction.** Told the agent to include relevant caveats,
+   prerequisites, and specifics — not just the headline answer.
+3. **Single-tool guidance.** It occasionally fired both `capture_lead` and
+   `book_callback`; now it picks one (`book_callback` for phone, else
+   `capture_lead`).
+
+Re-checked after the fixes: all 3 failed cases pass and the double-tool-call is
+gone. Run `make eval` for a full re-score.
+
+**Keyless & CI-safe:** the harness runs on the `FakeProvider` for plumbing
+(`make test` covers it); real numbers need a key.
+
 ### Quickstart
 
 ```bash

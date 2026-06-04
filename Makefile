@@ -23,8 +23,8 @@ run:  ## Serve the API (http://127.0.0.1:8000/docs)
 test:  ## Run the test suite
 	$(PY) -m pytest -q
 
-eval:  ## Placeholder until Day 3
-	@echo "Eval harness arrives on Day 3."
+eval:  ## Run the eval harness (accuracy + failure breakdown)
+	$(PY) -m scripts.eval_cli
 
 clean:  ## Remove the built index
 	rm -rf data/index

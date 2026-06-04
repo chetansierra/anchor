@@ -4,6 +4,7 @@ __pycache__/
 .env
 data/index/
 data/crm/
+data/eval/report.json
 .pytest_cache/
 .DS_Store
 *.egg-info/
