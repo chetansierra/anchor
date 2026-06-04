@@ -30,6 +30,13 @@ it at your own docs and it works the same way.
 - **Observable.** Every `/chat` response includes tokens, **$ cost**, latency, the
   retrieved chunks, and any tool calls — and every run is persisted as a trace you
   can replay in the built-in `/admin` dashboard, with a daily cost rollup.
+- **Embeddable in one line.** A single `<script>` tag drops a floating chat widget
+  onto any site, **shadow-DOM isolated** so it never clashes with the host page;
+  themeable via `data-` attributes, with a "Show how it works" toggle that reveals
+  retrieval, cost, and tool calls.
+- **Rate-limited & cost-capped.** The open demo is protected by a per-IP rate limit
+  and a **hard daily cost ceiling** so a bot or bored visitor can't run up the bill;
+  an optional API-key gate is the seam to per-client keys.
 - **Evaluated.** A built-in harness scores answer correctness (LLM-as-judge),
   retrieval hit-rate, refusal correctness, and tool-call correctness.
 
@@ -62,6 +69,8 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
 | `GET /admin` | observability dashboard (cost, latency, conversation traces) |
 | `GET /admin/overview` | rollup: total/daily cost, tokens, escalation rate |
 | `GET /admin/conversations[/{id}]` | recent runs (filter `?outcome=`) + full trace |
+| `GET /widget.js` | the embeddable chat widget (one `<script>` tag) |
+| `GET /demo` | a throwaway host page with the widget embedded |
 
 ```bash
 curl -s -X POST localhost:8000/chat -H 'content-type: application/json' \
@@ -86,6 +95,10 @@ defaults run keyless):
 | `EMBEDDER` | `auto` | `auto` \| `fastembed` \| `openai` \| `hashing` |
 | `MIN_CONFIDENCE` | `0.15` | low-confidence escalation backstop |
 | `MAX_TOOL_ITERATIONS` | `4` | agent loop cap |
+| `CORS_ALLOW_ORIGINS` | `*` | comma-separated origins allowed to call the API |
+| `RATE_LIMIT_PER_MINUTE` | `20` | per-IP cap on `/chat` |
+| `DAILY_COST_CEILING_USD` | `5.0` | hard daily `/chat` spend cap (from recorded traces) |
+| `DEMO_API_KEY` | – | if set, `/chat` requires this `X-API-Key` header |
 
 OpenAI/Gemini SDKs are optional: `pip install -r requirements-optional.txt`.
 **Re-run `make ingest` after changing the embedder** (vector dimensions differ).
@@ -130,6 +143,31 @@ make costs                         # the same rollup in the terminal
 
 So you can answer the two questions every client asks — *"can I see what it did?"*
 and *"what will this cost me to run?"* — from real recorded runs.
+
+## Embed on any site
+
+One script tag mounts the agent as a floating chat widget, isolated in a shadow
+root so it can't clash with the host page:
+
+```html
+<script src="https://YOUR_HOST/widget.js"
+        data-business="Nimbus"
+        data-color="#6ea8fe"
+        data-position="bottom-right"
+        data-machinery="off"></script>
+```
+
+| Attribute | Default | Purpose |
+|---|---|---|
+| `data-business` | from `/widget/config` | name shown in the header / greeting |
+| `data-color` | `#6ea8fe` | brand accent color |
+| `data-position` | `bottom-right` | `bottom-right` \| `bottom-left` |
+| `data-machinery` | `off` | start with the "Show how it works" panel on |
+| `data-api` | script origin | API base URL (set when hosted elsewhere) |
+
+Run `make run` and open <http://127.0.0.1:8000/demo> (or `examples/embed-test.html`)
+to see it live. The open demo is protected by a per-IP rate limit and a hard daily
+cost ceiling (`RATE_LIMIT_PER_MINUTE`, `DAILY_COST_CEILING_USD`).
 
 ## Tests & CI
 
