@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Acme Robotics — (widget test page)</title>
+  <style>
+    body { margin: 0; font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           color: #1c2130; background: #fbfcfe; }
+    .nav { display: flex; gap: 24px; align-items: center; padding: 18px 40px; border-bottom: 1px solid #eef0f4; }
+    .nav b { font-size: 18px; } .nav a { color: #6b7280; text-decoration: none; font-size: 14px; }
+    .hero { max-width: 760px; margin: 80px auto; padding: 0 24px; text-align: center; }
+    .hero h1 { font-size: 44px; line-height: 1.15; margin: 0 0 16px; }
+    .hero p { font-size: 19px; color: #5b6473; }
+    .note { max-width: 620px; margin: 0 auto 80px; padding: 16px 20px; border: 1px dashed #d8dce4;
+            border-radius: 12px; color: #8a93a3; font-size: 14px; text-align: center; }
+    code { background: #eef1f6; border-radius: 5px; padding: 1px 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="nav"><b>Acme Robotics</b><a href="#">Product</a><a href="#">Pricing</a><a href="#">Docs</a></div>
+  <div class="hero">
+    <h1>Warehouse automation that just works.</h1>
+    <p>This is a throwaway host page — not the portfolio. It exists only to prove the
+       support widget drops onto any site with a single <code>&lt;script&gt;</code> tag.</p>
+  </div>
+  <div class="note">↘ The chat bubble in the corner is the embedded Anchor widget. Click it,
+     ask a question, and flip <b>“How it works”</b> to see retrieval, cost, and tool calls.</div>
+
+  <!-- The one and only integration line a client adds: -->
+  <script src="/widget.js"
+          data-business="Acme Robotics"
+          data-color="#7c5cff"
+          data-position="bottom-right"
+          data-machinery="off"></script>
+</body>
+</html>

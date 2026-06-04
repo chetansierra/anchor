@@ -119,6 +119,13 @@ class TraceStore:
                 return t
         return None
 
+    def cost_today(self) -> float:
+        """Sum of today's (UTC) recorded $ cost — backs the daily cost ceiling."""
+        today = datetime.now(timezone.utc).isoformat()[:10]
+        return round(
+            sum(t["cost_usd"] for t in self.all() if t["created_at"][:10] == today), 6
+        )
+
     def overview(self) -> Overview:
         traces = self.all()
         runs = len(traces)

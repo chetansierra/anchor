@@ -8,15 +8,18 @@ the agent is built lazily on top of it (and rebuilt after /ingest).
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, Response
 
 from . import __version__
 from .admin_page import ADMIN_HTML
 from .agent import Agent, AgentResult
 from .config import get_settings
 from .ingest import run_ingest
+from .limits import RateLimiter, enforce_demo_limits
 from .models import (
     ChatRequest,
     ChatResponse,
@@ -68,6 +71,27 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Anchor Support Agent", version=__version__, lifespan=lifespan)
+
+# CORS so the one-script-tag widget works when embedded on another origin.
+_origins = [o.strip() for o in get_settings().cors_allow_origins.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins or ["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# Per-IP rate limiter for the open demo (shared across requests, single process).
+_rate_limiter = RateLimiter(get_settings().rate_limit_per_minute)
+
+_STATIC = Path(__file__).resolve().parent / "static"
+# Suggested prompt chips the widget shows on open (grounded in the seeded KB).
+SUGGESTED_PROMPTS = [
+    "How do I reset my password?",
+    "Do you support SAML SSO?",
+    "What are your API rate limits?",
+    "Can I get a refund after I cancel?",
+]
 
 
 def _to_chat_response(result: AgentResult) -> ChatResponse:
@@ -170,12 +194,26 @@ def query(req: QueryRequest) -> QueryResponse:
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+def chat(
+    req: ChatRequest,
+    request: Request,
+    x_api_key: str | None = Header(default=None),
+) -> ChatResponse:
     if _state["retriever"] is None:
         raise HTTPException(
             status_code=409,
             detail="No index loaded. POST /ingest first to build the KB index.",
         )
+    settings = get_settings()
+    store = TraceStore(settings.traces_path)
+    # Public-demo guardrails: API-key seam, per-IP rate limit, daily cost ceiling.
+    enforce_demo_limits(
+        ip=request.client.host if request.client else "unknown",
+        api_key=x_api_key,
+        settings=settings,
+        limiter=_rate_limiter,
+        store=store,
+    )
     try:
         agent = _get_agent()
     except Exception as exc:
@@ -183,7 +221,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     assert agent is not None
     result = agent.run(req.message, req.top_k)
     try:  # best-effort: a trace write must never break a live answer
-        TraceStore(get_settings().traces_path).record(req.message, result)
+        store.record(req.message, result)
     except Exception:
         pass
     return _to_chat_response(result)
@@ -226,3 +264,30 @@ def admin_conversation(trace_id: str) -> dict:
     if trace is None:
         raise HTTPException(status_code=404, detail=f"No trace {trace_id!r}.")
     return trace
+
+
+# --- Embeddable widget (Day 5) ----------------------------------------------
+
+
+@app.get("/widget.js", include_in_schema=False)
+def widget_js() -> Response:
+    """The one-script-tag widget. Served with a JS content-type and a short cache."""
+    js = (_STATIC / "widget.js").read_text(encoding="utf-8")
+    return Response(
+        content=js,
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+@app.get("/widget/config")
+def widget_config() -> dict:
+    """Lets the widget self-configure: business name + suggested prompt chips."""
+    s = get_settings()
+    return {"business": s.business_name, "suggested": SUGGESTED_PROMPTS}
+
+
+@app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
+def demo_page() -> HTMLResponse:
+    """A throwaway page that embeds the widget — the live one-script-tag check."""
+    return HTMLResponse((_STATIC / "embed-test.html").read_text(encoding="utf-8"))

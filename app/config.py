@@ -88,6 +88,18 @@ class Settings(BaseSettings):
     # are appended here as JSONL; the /admin view and cost rollup read them back.
     traces_dir: str = "data/traces"
 
+    # --- Embeddable widget + public-demo guardrails (Day 5) -----------------
+    # The widget is one <script> tag; these protect the open, keyless demo from a
+    # bot or bored visitor running up the API bill (a selling point in itself).
+    cors_allow_origins: str = "*"  # comma-separated origins; "*" for the open demo
+    rate_limit_per_minute: int = 20  # per client IP, on /chat
+    # Hard daily $ ceiling on /chat — enforced by summing today's recorded trace
+    # costs (Day 4), so it survives restarts. Above it, /chat declines politely.
+    daily_cost_ceiling_usd: float = 5.0
+    # Optional X-API-Key gate. Unset -> open demo; set -> required (the seam that
+    # makes per-client keys / multi-tenant a small step later).
+    demo_api_key: str | None = None
+
     def path(self, value: str) -> Path:
         p = Path(value)
         return p if p.is_absolute() else ROOT / p

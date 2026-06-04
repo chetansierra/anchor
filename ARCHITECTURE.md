@@ -27,7 +27,7 @@ anchor/
 ├── app/                      # the application
 │   ├── config.py             # env-driven settings (pydantic-settings); works keyless
 │   ├── models.py             # FastAPI request/response schemas (pydantic)
-│   ├── main.py               # FastAPI app: /health /ingest /query /chat /leads /admin
+│   ├── main.py               # FastAPI app: /health /ingest /query /chat /leads /admin /widget.js
 │   │
 │   ├── kb_loader.py          # load markdown KB docs from data/kb
 │   ├── chunking.py           # token-aware chunking with overlap
@@ -39,6 +39,8 @@ anchor/
 │   ├── agent.py              # the agent loop (retrieve → ground → answer/cite or act)
 │   ├── traces.py             # per-run trace store (JSONL) + cost/outcome rollups
 │   ├── admin_page.py         # the /admin dashboard (one self-contained HTML page)
+│   ├── limits.py             # public-demo guardrails: per-IP rate limit + daily $ ceiling
+│   ├── static/               # widget.js (shadow-DOM chat widget) + embed-test.html
 │   │
 │   ├── llm/                  # provider-agnostic LLM layer (strategy pattern)
 │   │   ├── base.py           #   normalized types + LLMProvider protocol
@@ -62,11 +64,12 @@ anchor/
 │   ├── traces/               # per-run traces.jsonl (generated, gitignored)
 │   └── eval/dataset.jsonl    # 41 labeled eval cases (report.json is gitignored)
 │
+├── examples/                 # embed-test.html — paste-one-script-tag demo page
 ├── scripts/                  # CLIs: ingest_cli, retrieve_cli (acceptance), eval_cli, costs_cli
-├── tests/                    # keyless pytest suite (retrieval, agent, translation, eval)
+├── tests/                    # keyless pytest suite (retrieval, agent, translation, eval, traces, widget)
 ├── .github/workflows/ci.yml  # CI: install → ingest → pytest
 ├── Dockerfile                # deploy-ready image (Railway/Fly/Render)
-├── Makefile                  # install / ingest / retrieve / run / test / eval
+├── Makefile                  # install / ingest / retrieve / run / test / eval / costs
 └── ARCHITECTURE.md           # this file
 ```
 
@@ -102,9 +105,20 @@ anchor/
   calls the admin JSON endpoints and renders headline cost/latency cards, the
   daily cost rollup, and a click-to-expand list of recent conversations with
   their full trace.
+- **limits** — public-demo guardrails for the open, keyless `/chat`: a per-IP
+  sliding-window rate limiter and a hard daily $ ceiling (enforced by summing
+  today's recorded trace costs, so it survives restarts), plus an optional
+  `X-API-Key` gate — the seam that makes per-client keys / multi-tenant a small
+  step later.
+- **static/widget.js** — the embeddable widget: one `<script>` tag mounts a
+  floating chat bubble in a **shadow root** (host CSS can't leak in or out),
+  themeable via `data-` attributes. Suggested-prompt chips, visible tool actions,
+  citations, and a "Show how it works" toggle (default off) that reveals the
+  machinery — retrieved chunks + scores, latency, tokens, $ cost, tool-call JSON.
 - **main** — the FastAPI surface tying it together; loads the index at startup,
-  builds the agent lazily on top of it, records a trace per `/chat`, and serves
-  the admin view (`/admin`, `/admin/overview`, `/admin/conversations[/{id}]`).
+  builds the agent lazily, enforces the demo guardrails and records a trace per
+  `/chat`, serves the admin view, and serves the widget (`/widget.js`,
+  `/widget/config`, `/demo`). CORS is enabled so the widget works cross-origin.
 
 ## Request flows
 
@@ -116,13 +130,22 @@ data/kb/*.md → kb_loader → chunking → embeddings.embed_documents
 
 **Chat** (`POST /chat`)
 ```
-question → retrieval.search (top-k)
+question → enforce_demo_limits (API-key seam → per-IP rate limit → daily $ ceiling)
+        → retrieval.search (top-k)
         → guardrail: top score < MIN_CONFIDENCE? → escalate (no LLM call)
         → build prompt: static system (cached) + numbered SOURCES in user turn
         → LLMProvider.generate(tools=[capture_lead, book_callback])
         → tool_use? → tools.run → MockCRM.record → feed result back → loop
         → final answer + citations + tokens/cost/latency
         → TraceStore.record (best-effort; never blocks the answer)
+```
+
+**Widget** (`<script src=".../widget.js" data-...>` on any site)
+```
+script tag → mount shadow root → GET /widget/config (business + suggested chips)
+          → user asks → POST /chat (CORS) → render answer + citations
+          → tool call? → show "✅ Lead captured" action
+          → "How it works" on? → reveal retrieved chunks + scores, cost, tokens, tool JSON
 ```
 
 **Observe** (`GET /admin` + `make costs`)
