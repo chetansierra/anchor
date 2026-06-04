@@ -1,188 +1,124 @@
 # Anchor — AI Support & Action Agent
 
-A production-grade **Website AI Support + Action Agent** built over a real
-knowledge base — answers *anchored* to source docs (cited, grounded), plus
-evaluated, observable, and provider-swappable. The demo business is *Nimbus*, a
-fictional B2B SaaS team-workflow tool (non-fintech, swap freely).
+Anchor is a production-grade **website support agent**: it answers visitor
+questions grounded in a real knowledge base — **with citations** — and takes
+**real actions** (capture a lead, book a callback) that post to a CRM. It's built
+to be **evaluated**, **observable**, and **provider-swappable**.
 
-Built incrementally, one focused milestone at a time.
+The bundled demo knowledge base is *Nimbus*, a fictional B2B SaaS product; point
+it at your own docs and it works the same way.
 
-> 📐 [ARCHITECTURE.md](ARCHITECTURE.md) — folder map, tech stack, request flows.
-> 📓 [learnings/learnings.md](learnings/learnings.md) — append-only build journal: concepts, mistakes, decisions.
+> 📐 See [ARCHITECTURE.md](ARCHITECTURE.md) for the folder map, tech stack, and
+> request flows.
 
-## Day 1 — RAG ingestion + retrieval (done)
+## Features
 
-A working ingestion pipeline (`load → chunk → embed → upsert`) over a seeded KB,
-plus an API to ingest and query it.
+- **Grounded RAG answers with citations.** Retrieves the most relevant
+  knowledge-base chunks and answers from them, citing sources inline.
+- **Real actions, not just chat.** A tool-calling agent can `capture_lead` and
+  `book_callback`, writing to a mock CRM (an append-only JSONL sink that stands in
+  for Airtable / HubSpot / a Sheet); review captures at `GET /leads`.
+- **Provider-agnostic LLM.** One interface, swappable at runtime
+  (`LLM_PROVIDER=auto|anthropic|openai|gemini|fake`) — Anthropic Claude by
+  default. A keyless **fake** provider lets the app and the full test suite run
+  with **no API key**.
+- **Semantic retrieval, offline-capable.** Local `fastembed` (BGE) embeddings —
+  free, no key — with a dependency-free lexical fallback so it always runs.
+- **Won't hallucinate.** A two-layer guardrail: a retrieval-confidence backstop
+  plus a grounding instruction that makes the model decline when the sources
+  don't cover the question.
+- **Observable.** Every `/chat` response includes tokens, **$ cost**, latency, the
+  retrieved chunks, and any tool calls.
+- **Evaluated.** A built-in harness scores answer correctness (LLM-as-judge),
+  retrieval hit-rate, refusal correctness, and tool-call correctness.
 
-```
-app/
-  config.py        # env-driven settings (works with zero keys)
-  chunking.py      # token-aware chunking with overlap
-  embeddings.py    # Embedder interface: hashing (offline) | fastembed | openai
-  vectorstore.py   # VectorStore interface: numpy LocalVectorStore (-> pgvector later)
-  kb_loader.py     # load markdown docs from data/kb
-  ingest.py        # the pipeline
-  retrieval.py     # embed query -> cosine search
-  main.py          # FastAPI: /health, /ingest, /query, /chat, /leads
-data/kb/           # ~20 seeded Nimbus help-center docs
-scripts/           # ingest_cli, retrieve_cli (acceptance check)
-tests/             # hermetic retrieval regression test
-```
-
-## Day 2 — The agent core (done)
-
-Retrieval becomes an **agent**: it answers **with citations** and takes a **real
-action** (capture a lead / book a callback) that writes to a mock CRM.
-
-```
-app/
-  llm/             # provider-agnostic LLM layer (strategy pattern)
-    base.py        #   normalized types + LLMProvider protocol
-    anthropic_provider.py  # Claude (tool use + prompt caching) — default
-    openai_provider.py     # OpenAI (function calling)
-    gemini_provider.py     # Gemini (best-effort; unverified without a key)
-    fake_provider.py       # deterministic, keyless — backs all tests
-    factory.py     #   build_llm_provider(): runtime selection via LLM_PROVIDER
-    pricing.py     #   per-model $ estimate
-  tools.py         # capture_lead / book_callback + mock CRM (JSONL sink)
-  agent.py         # retrieve -> ground -> answer+cite / tool-call loop + guardrail
-```
-
-**Provider-agnostic by design.** The agent depends only on the `LLMProvider`
-interface. `LLM_PROVIDER` (`auto|anthropic|openai|gemini|fake`) chooses the
-backend at runtime; `auto` falls back through the providers by which API key is
-present, ending at the keyless `fake` provider — so the app (and CI) always runs
-with **no key**. Anthropic (`claude-opus-4-8`) is the default; the static system
-prompt + tool defs form the cached prefix, with per-query context in the user turn.
-
-**Guardrail:** if the top retrieval score is below `MIN_CONFIDENCE`, the agent
-refuses/escalates **without calling the model** — it can't hallucinate what it
-never sends.
-
-### Try the agent
+## Quickstart
 
 ```bash
-# no key needed (uses the fake provider); set ANTHROPIC_API_KEY for real answers
-curl -s -X POST localhost:8000/chat \
-  -H 'content-type: application/json' \
-  -d '{"message":"how do I reset my password?","top_k":3}'
-
-curl -s -X POST localhost:8000/chat \
-  -H 'content-type: application/json' \
-  -d '{"message":"can someone call me back about enterprise pricing?"}'
-
-curl -s localhost:8000/leads      # see the captured lead / booked callback
+make install          # venv + core deps (runs with no API key)
+make install-embed    # recommended: local semantic embeddings (fastembed/BGE)
+make ingest           # build the knowledge-base index
+make test             # run the test suite (keyless)
+make run              # serve at http://127.0.0.1:8000/docs
 ```
 
-### Configuring the LLM
+For real LLM answers, add a key to `.env` (otherwise it runs on the keyless fake
+provider):
 
-Set these in `.env` (all optional — defaults run keyless):
+```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
+```
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | status, loaded index, active provider/model |
+| `POST /ingest` | (re)build the KB index from `data/kb/` |
+| `POST /query` | raw retrieval — top-k chunks for a query |
+| `POST /chat` | the agent — grounded answer + citations + actions |
+| `GET /leads` | recent leads / callbacks captured by the agent |
+
+```bash
+curl -s -X POST localhost:8000/chat -H 'content-type: application/json' \
+  -d '{"message":"do you support SAML SSO, and can someone call me about it?","top_k":3}'
+
+curl -s localhost:8000/leads
+```
+
+## Configuration
+
+All via environment variables or a local `.env` (every value has a default; the
+defaults run keyless):
 
 | Var | Default | Purpose |
 |---|---|---|
 | `LLM_PROVIDER` | `auto` | `auto` \| `anthropic` \| `openai` \| `gemini` \| `fake` |
-| `ANTHROPIC_API_KEY` | – | required for `anthropic` (real answers) |
-| `ANTHROPIC_MODEL` | `claude-opus-4-8` | e.g. `claude-haiku-4-5` for a cheaper demo |
+| `ANTHROPIC_API_KEY` | – | enables real Claude answers |
+| `ANTHROPIC_MODEL` | `claude-opus-4-8` | e.g. `claude-sonnet-4-6` / `claude-haiku-4-5` |
 | `ANTHROPIC_THINKING` | `disabled` | `disabled` \| `adaptive` |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` | – / `gpt-4o-mini` | for `openai` |
-| `GEMINI_API_KEY` / `GEMINI_MODEL` | – / `gemini-2.0-flash` | for `gemini` |
-| `MIN_CONFIDENCE` | `0.15` | low-confidence escalation threshold |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` | – / `gpt-4o-mini` | use OpenAI |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | – / `gemini-2.0-flash` | use Gemini |
+| `EMBEDDER` | `auto` | `auto` \| `fastembed` \| `openai` \| `hashing` |
+| `MIN_CONFIDENCE` | `0.15` | low-confidence escalation backstop |
 | `MAX_TOOL_ITERATIONS` | `4` | agent loop cap |
 
 OpenAI/Gemini SDKs are optional: `pip install -r requirements-optional.txt`.
+**Re-run `make ingest` after changing the embedder** (vector dimensions differ).
 
-**Acceptance:** one `/chat` run answers from the docs *with a citation* **and**
-another writes a row to the mock CRM (`/leads`). All covered by `make test`,
-keyless.
+## Evaluation
 
-## Day 3 — Eval harness (done) · *the differentiator*
+`make eval` scores the agent over a labeled dataset (`data/eval/dataset.jsonl`)
+and prints accuracy with a failure breakdown — a regression gate for a
+non-deterministic system. It measures retrieval hit-rate, answer correctness
+(LLM-as-judge against a rubric), refusal correctness on out-of-scope questions,
+and tool-call correctness.
 
-The numbers most freelancers never show. A labeled set of **41 cases**
-(answerable, out-of-scope-should-refuse, and tool-action) is scored on four axes
-— retrieval hit-rate, answer correctness (**LLM-as-judge** vs. a rubric),
-refusal correctness, and tool-call correctness — via one command:
-
-```bash
-make eval                                    # full report on the configured provider
-python -m scripts.eval_cli ans-2fa-2 ans-sso-2   # re-run specific case ids (cheap)
-```
-
-```
-app/eval/
-  dataset.py  # load the labeled JSONL
-  judge.py    # provider-agnostic LLM-as-judge (PASS/FAIL + reason)
-  scorer.py   # per-category scoring (answer / refusal / tool / retrieval)
-  runner.py   # aggregate + format report
-data/eval/dataset.jsonl   # the 41 labeled cases
-```
-
-### Scorecard — Sonnet 4.6, 41 cases
+Representative run (Claude Sonnet 4.6, 41 cases):
 
 | Metric | Result |
 |---|---|
-| **Overall accuracy** | **92.7%** (38/41) |
-| Retrieval hit@k | **100%** |
-| Answer correctness (answerable) | 24/27 → **27/27** after fixes |
-| Refusal correctness (out-of-scope) | **8/8** |
-| Tool-call correctness (action) | **6/6** |
-| Cost / full run | ~**$0.39** (agent $0.33 + judge $0.05), 271s |
-
-### 3 fixes the eval drove
-Every one of the 3 misses had **100% retrieval** — the right doc was found, but
-the answer dropped a detail. Root cause and fixes:
-
-1. **Context truncation.** Sources were truncated to 800 chars, cutting the tail
-   of each doc — exactly where *"an admin can reset 2FA"*, *"SSO disables
-   password login"*, and *"contact support with your invoice number"* lived.
-   Raised the per-source budget so full chunks reach the model.
-2. **Completeness instruction.** Told the agent to include relevant caveats,
-   prerequisites, and specifics — not just the headline answer.
-3. **Single-tool guidance.** It occasionally fired both `capture_lead` and
-   `book_callback`; now it picks one (`book_callback` for phone, else
-   `capture_lead`).
-
-Re-checked after the fixes: all 3 failed cases pass and the double-tool-call is
-gone. Run `make eval` for a full re-score.
-
-**Keyless & CI-safe:** the harness runs on the `FakeProvider` for plumbing
-(`make test` covers it); real numbers need a key.
-
-### Quickstart
+| Overall accuracy | 92.7% |
+| Retrieval hit-rate | 100% |
+| Refusal correctness (out-of-scope) | 8/8 |
+| Tool-call correctness | 6/6 |
+| Cost / run | ~$0.39 |
 
 ```bash
-make install          # venv + core deps (no API key needed)
-make install-embed    # optional: real local embeddings (fastembed)
-make ingest           # build the KB index
-make retrieve         # Day 1 acceptance: top-k for 5 hand-picked questions
-make test             # run the test suite
-make run              # serve API at http://127.0.0.1:8000/docs
+make eval                                    # full report (needs an API key)
+python -m scripts.eval_cli ans-2fa-2 ans-sso-2   # re-run specific case ids
 ```
 
-### Try the API
+The harness runs on the keyless fake provider for CI plumbing; real numbers need
+an API key.
 
-```bash
-curl -s localhost:8000/health
-curl -s -X POST localhost:8000/ingest
-curl -s -X POST localhost:8000/query \
-  -H 'content-type: application/json' \
-  -d '{"query":"how do I reset my password?","top_k":4}'
-```
+## Tests & CI
 
-### Embeddings: zero-config by default
+The suite runs **keyless** — a deterministic fake provider stands in for the LLM,
+so `make test` (and CI on every push: install → ingest → pytest) needs no API key.
 
-`EMBEDDER=auto` (the default) uses `fastembed` if installed, else OpenAI if
-`OPENAI_API_KEY` is set, else a dependency-free **HashingEmbedder** — so it runs
-offline with no keys. Retrieval stays free either way; only generation costs
-money, which keeps the public demo cheap to run.
+## Deployment
 
-**Recommended: `make install-embed`** then `make ingest`. This switches `auto`
-to real **semantic** embeddings (`fastembed`, BGE-small — local, no API key) and
-markedly improves recall on paraphrased questions the lexical fallback misses
-(e.g. *"I'm locked out and can't remember my login"* → the reset-password doc).
-A short BGE query-instruction prefix is applied to queries for an extra boost.
-
-Set `EMBEDDER` in `.env` to pin a backend. **Re-run `make ingest` whenever you
-change the embedder** — vector dimensions differ (hashing 1024, BGE-small 384).
-
-**Acceptance:** `make retrieve` prints PASS for all 5 hand-picked questions.
+The `Dockerfile` builds a deploy-ready image (Railway / Fly.io / Render). The
+index is built at image-build time so `/chat` works on first boot; inject `PORT`
+and your provider key as environment variables.
