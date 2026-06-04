@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 
+from ..services_catalog import default_consult_payload
 from .base import LLMMessage, LLMResponse, ToolCall, ToolSpec, Usage
 
 _LEAD_INTENT = (
@@ -79,6 +80,23 @@ class FakeProvider:
     def _heuristic(
         self, messages: list[LLMMessage], tools: list[ToolSpec] | None
     ) -> LLMResponse:
+        # Consultant agent: when the `emit_consult` tool is on the surface, return
+        # a deterministic, schema-valid structured proposal so the landing-page
+        # consultant + its SSE stream run fully keyless (CI + offline demo).
+        if tools and any(t.name == "emit_consult" for t in tools):
+            problem = _latest_question(messages).split("Visitor's problem:")[-1].strip()
+            return LLMResponse(
+                tool_calls=[
+                    ToolCall(
+                        id="fake_consult_1",
+                        name="emit_consult",
+                        arguments=default_consult_payload(problem),
+                    )
+                ],
+                stop_reason="tool_use",
+                usage=Usage(220, 160),
+            )
+
         last = messages[-1] if messages else None
         if last is not None and last.role == "tool":
             result = last.tool_results[0].content if last.tool_results else ""

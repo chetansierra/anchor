@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 from .config import Settings
 from .embeddings import Embedder, build_embedder
@@ -14,8 +15,16 @@ class Retriever:
         self.embedder = embedder
 
     @classmethod
-    def load(cls, settings: Settings, embedder: Embedder | None = None) -> "Retriever":
-        store = LocalVectorStore.load(settings.index_path)
+    def load(
+        cls,
+        settings: Settings,
+        embedder: Embedder | None = None,
+        index_path: Path | None = None,
+    ) -> "Retriever":
+        """Load a retriever over a persisted index. Defaults to the Nimbus
+        support index; pass ``index_path`` (e.g. ``settings.services_index_path``)
+        to load the consultant's services corpus instead."""
+        store = LocalVectorStore.load(index_path or settings.index_path)
         emb: Embedder = embedder if embedder is not None else build_embedder(settings)
         if emb.dim != store.dim:
             raise RuntimeError(

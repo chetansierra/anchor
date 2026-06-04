@@ -11,7 +11,7 @@ install:  ## Create venv and install core deps
 install-embed:  ## Optional: real local embeddings (fastembed)
 	$(PIP) install -r requirements-optional.txt
 
-ingest:  ## Build/rebuild the KB index
+ingest:  ## Build/rebuild both indexes (support KB + services KB)
 	$(PY) -m scripts.ingest_cli
 
 retrieve:  ## Day 1 acceptance: top-k for 5 hand-picked questions
@@ -29,5 +29,5 @@ eval:  ## Run the eval harness (accuracy + failure breakdown)
 costs:  ## Daily cost rollup over recorded traces
 	$(PY) -m scripts.costs_cli
 
-clean:  ## Remove the built index
-	rm -rf data/index
+clean:  ## Remove the built indexes
+	rm -rf data/index data/services_index

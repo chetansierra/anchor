@@ -19,6 +19,40 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .agent import AgentResult
+from .models import ConsultResult
+
+
+def build_consult_trace(problem: str, result: ConsultResult) -> dict:
+    """Project a ConsultResult into the SAME flat trace shape as build_trace, so
+    consultant runs land in the one traces.jsonl and the /admin overview, daily
+    rollup, and cost ceiling all keep working unchanged (outcome='consult')."""
+    return {
+        "id": f"trace_{uuid.uuid4().hex[:10]}",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "question": problem,
+        "answer": result.problem_restatement,
+        "outcome": "consult",
+        "grounded": result.grounded,
+        "escalated": False,
+        "provider": result.provider,
+        "model": result.model,
+        "latency_ms": result.latency_ms,
+        "usage": {
+            "input_tokens": result.usage.input_tokens,
+            "output_tokens": result.usage.output_tokens,
+        },
+        "cost_usd": result.cost_usd,
+        "iterations": 1,
+        "tool_calls": [
+            {
+                "name": "emit_consult",
+                "arguments": {"services": [s.service_id for s in result.services]},
+                "result": f"{len(result.services)} service(s) proposed",
+            }
+        ],
+        "citations": [c.model_dump() for c in result.citations],
+        "retrieved": [r.model_dump() for r in result.retrieved],
+    }
 
 
 def _outcome(result: AgentResult) -> str:
@@ -92,7 +126,13 @@ class TraceStore:
         self.path = Path(traces_dir) / "traces.jsonl"
 
     def record(self, question: str, result: AgentResult) -> dict:
-        trace = build_trace(question, result)
+        return self._append(build_trace(question, result))
+
+    def record_consult(self, problem: str, result: ConsultResult) -> dict:
+        """Append a consultant run's trace (same file/shape as /chat traces)."""
+        return self._append(build_consult_trace(problem, result))
+
+    def _append(self, trace: dict) -> dict:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(trace, ensure_ascii=False) + "\n")

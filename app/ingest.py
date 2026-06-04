@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from .chunking import build_token_counter, chunk_text
 from .config import Settings
@@ -25,12 +26,20 @@ class IngestStats:
     elapsed_ms: float
 
 
-def run_ingest(settings: Settings, embedder: Embedder | None = None) -> IngestStats:
+def run_ingest(
+    settings: Settings,
+    embedder: Embedder | None = None,
+    kb_path: Path | None = None,
+    index_path: Path | None = None,
+) -> IngestStats:
+    """Build an index from a KB dir. Defaults to the Nimbus support corpus
+    (``settings.kb_path`` -> ``settings.index_path``); pass ``kb_path`` /
+    ``index_path`` to build the second, services corpus into its own index."""
     started = time.perf_counter()
     emb: Embedder = embedder if embedder is not None else build_embedder(settings)
     count_tokens = build_token_counter(settings.chars_per_token)
 
-    documents = load_documents(settings.kb_path)
+    documents = load_documents(kb_path or settings.kb_path)
 
     records: list[ChunkRecord] = []
     texts: list[str] = []
@@ -56,7 +65,7 @@ def run_ingest(settings: Settings, embedder: Embedder | None = None) -> IngestSt
 
     vectors = emb.embed_documents(texts)
 
-    store = LocalVectorStore(settings.index_path, emb.name, emb.dim)
+    store = LocalVectorStore(index_path or settings.index_path, emb.name, emb.dim)
     store.upsert(vectors, records)
     store.save()
 

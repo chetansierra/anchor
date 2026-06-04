@@ -5,6 +5,17 @@ grounded in a real knowledge base (with citations) and takes real actions
 (capture a lead / book a callback). Built to be **evaluated, observable, and
 provider-swappable**.
 
+**v2 — the self-referential consultant (the new hero).** The landing experience
+is now an **AI solutions consultant**: a visitor describes their AI problem and a
+second agent classifies it into the productized services, answers grounded in a
+corpus about *the freelancer's own work*, **streams its reasoning as named stages
+over SSE**, and renders a structured mini-proposal (matched services, a tailored
+solution sketch, a rough timeline, lead capture + proof). The consultant reuses
+the same engine — retriever, `LLMProvider` seam, tools/CRM, traces, limits — over
+a **separate services corpus**, and is presented by a **Next.js + Tailwind**
+front-end in [`web/`](web/). The original Nimbus support agent + widget are kept
+as a live "deployed example" and the eval case study remains the proof.
+
 ## Tech stack
 
 | Concern | Choice | Notes |
@@ -27,7 +38,7 @@ anchor/
 ├── app/                      # the application
 │   ├── config.py             # env-driven settings (pydantic-settings); works keyless
 │   ├── models.py             # FastAPI request/response schemas (pydantic)
-│   ├── main.py               # FastAPI app: / (portfolio) /health /ingest /query /chat /leads /admin /widget.js /kb
+│   ├── main.py               # FastAPI app: / (portfolio) /health /ingest /query /chat /leads /admin /widget.js /kb /consult/*
 │   │
 │   ├── kb_loader.py          # load markdown KB docs from data/kb
 │   ├── chunking.py           # token-aware chunking with overlap
@@ -36,8 +47,10 @@ anchor/
 │   ├── ingest.py             # pipeline: load → chunk → embed → upsert → persist
 │   ├── retrieval.py          # query-time: embed query → cosine search
 │   ├── tools.py              # agent tools (capture_lead/book_callback) + mock CRM sink
-│   ├── agent.py              # the agent loop (retrieve → ground → answer/cite or act)
-│   ├── traces.py             # per-run trace store (JSONL) + cost/outcome rollups
+│   ├── agent.py              # the support agent loop (retrieve → ground → answer/cite or act)
+│   ├── consult.py            # the AI-solutions-consultant agent (SSE staged steps → structured cards)
+│   ├── services_catalog.py   # productized service catalog + keyless default-proposal builder
+│   ├── traces.py             # per-run trace store (JSONL) + cost/outcome rollups (chat + consult)
 │   ├── admin_page.py         # the /admin dashboard (one self-contained HTML page)
 │   ├── limits.py             # public-demo guardrails: per-IP rate limit + daily $ ceiling
 │   ├── static/               # portfolio.html (landing page) + widget.js + embed-test.html
@@ -59,10 +72,17 @@ anchor/
 │
 ├── data/
 │   ├── kb/                   # ~22 seeded Nimbus help-center markdown docs (source)
-│   ├── index/                # built vector index (generated, gitignored)
+│   ├── services_kb/          # ~10 markdown docs about the freelancer's own services (source)
+│   ├── index/                # built Nimbus vector index (generated, gitignored)
+│   ├── services_index/       # built services vector index (generated, gitignored)
 │   ├── crm/                  # mock CRM events.jsonl (generated, gitignored)
 │   ├── traces/               # per-run traces.jsonl (generated, gitignored)
 │   └── eval/dataset.jsonl    # 41 labeled eval cases (report.json is gitignored)
+│
+├── web/                      # Next.js + Tailwind front-end — the consultant landing experience
+│   ├── app/page.tsx          #   hero prompt + live stepper + results (React hooks state)
+│   ├── components/           #   HeroPrompt, ThinkingStepper, ConsultResultView, cards/, LeadCaptureForm, NimbusLink
+│   └── lib/                  #   sse.ts (fetch+ReadableStream reader), api.ts, types.ts (ConsultResult mirror)
 │
 ├── examples/                 # embed-test.html — paste-one-script-tag demo page
 ├── scripts/                  # CLIs: ingest_cli, retrieve_cli (acceptance), eval_cli, costs_cli
@@ -93,6 +113,17 @@ anchor/
   with numbered sources + tools → answer with citations, or execute a tool and
   continue. Returns a structured result (answer, citations, tool calls, retrieved
   chunks, tokens, cost, latency).
+- **consult / services_catalog** — the v2 consultant. `consult.py` holds
+  `ConsultAgent`: it retrieves from the **services** corpus, then makes one LLM
+  call with a single forced tool (`emit_consult`) whose input schema *is* the
+  proposal — so the structured cards arrive through the same `ToolCall.arguments`
+  path the support agent already uses (no provider changes, no JSON-in-prose
+  parsing). `run_streamed` yields `(event, payload)` tuples that the SSE route
+  serializes; `run` drains them for a typed `ConsultResult`. Unknown/again-drifted
+  fields are coerced or fall back to a safe catalog-derived proposal, so the
+  public demo never 500s. `services_catalog.py` is dependency-free (the catalog +
+  a deterministic `default_consult_payload`), shared by `ConsultAgent`'s fallback
+  and the keyless `FakeProvider` heuristic — one source of truth, no import cycle.
 - **eval** — runs the agent over the labeled dataset and grades it (retrieval
   hit-rate, answer correctness via LLM-as-judge, refusal correctness, tool
   correctness), emitting an accuracy report + failure breakdown.
@@ -143,6 +174,21 @@ question → enforce_demo_limits (API-key seam → per-IP rate limit → daily $
         → tool_use? → tools.run → MockCRM.record → feed result back → loop
         → final answer + citations + tokens/cost/latency
         → TraceStore.record (best-effort; never blocks the answer)
+```
+
+**Consult** (`POST /consult/stream`, SSE — the Next.js front-end calls this)
+```
+problem → enforce_demo_limits (pre-flight: real HTTP error before the stream opens)
+        → ConsultAgent.run_streamed:
+            stage: understanding  (marker)
+            stage: matching       → retrieval.search over the SERVICES index → {docs:n}
+            stage: drafting       → LLMProvider.generate(tools=[emit_consult]) → ConsultResult
+            stage: timeline       (marker; same structured payload)
+            result: ConsultResult (services, solution, timeline, proof + observability)
+        → TraceStore.record_consult (outcome="consult"; same traces.jsonl, /admin & ceiling unchanged)
+        → done
+  (POST /consult/lead → MockCRM.record("capture_lead", …source:"consult"); free, ceiling-exempt)
+  (GET  /consult/catalog → the productized service catalog for the front-end)
 ```
 
 **Widget** (`<script src=".../widget.js" data-...>` on any site)

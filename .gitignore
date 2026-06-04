@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .env
 data/index/
+data/services_index/
 data/crm/
 data/traces/
 data/eval/report.json
