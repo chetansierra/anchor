@@ -11,3 +11,6 @@ data/eval/report.json
 
 # Private planning doc — kept local, not published
 MAIN_GOAL.MD
+
+# Internal build journal — kept local, not published
+learnings/

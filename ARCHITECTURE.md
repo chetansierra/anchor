@@ -64,7 +64,6 @@ anchor/
 ├── .github/workflows/ci.yml  # CI: install → ingest → pytest
 ├── Dockerfile                # deploy-ready image (Railway/Fly/Render)
 ├── Makefile                  # install / ingest / retrieve / run / test / eval
-├── learnings/learnings.md    # append-only build journal (concepts, mistakes, decisions)
 └── ARCHITECTURE.md           # this file
 ```
 
@@ -128,5 +127,3 @@ data/eval/dataset.jsonl → agent.run per case → scorer (judge for answer/refu
   refusal layer).
 - **Prompt caching discipline** — static system prompt + tools form the cached
   prefix; per-query retrieved context goes in the user turn.
-
-See `learnings/learnings.md` for the story behind these choices.
