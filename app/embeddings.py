@@ -82,10 +82,11 @@ class HashingEmbedder:
 class FastEmbedEmbedder:
     """Local ONNX sentence embeddings via the `fastembed` package."""
 
-    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5") -> None:
+    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5", query_prefix: str = "") -> None:
         from fastembed import TextEmbedding  # type: ignore
 
         self.name = f"fastembed:{model_name}"
+        self._query_prefix = query_prefix
         self._model = TextEmbedding(model_name=model_name)
         # Probe dimensionality once.
         self.dim = int(next(iter(self._model.embed(["dimension probe"]))).shape[0])
@@ -97,7 +98,10 @@ class FastEmbedEmbedder:
         return _l2_normalize(mat)
 
     def embed_query(self, text: str) -> np.ndarray:
-        vec = np.array(next(iter(self._model.embed([text]))), dtype=np.float32)
+        # BGE-v1.5 retrieval benefits from a short instruction prefix on the
+        # query side only; passages are embedded as-is.
+        query = f"{self._query_prefix}{text}" if self._query_prefix else text
+        vec = np.array(next(iter(self._model.embed([query]))), dtype=np.float32)
         return _l2_normalize(vec[None, :])[0]
 
 
@@ -130,7 +134,7 @@ def build_embedder(settings: Settings) -> Embedder:
     choice = settings.embedder.lower()
 
     def make_fastembed() -> Embedder:
-        return FastEmbedEmbedder(settings.fastembed_model)
+        return FastEmbedEmbedder(settings.fastembed_model, settings.fastembed_query_prefix)
 
     def make_openai() -> Embedder:
         if not settings.openai_api_key:

@@ -117,10 +117,17 @@ curl -s -X POST localhost:8000/query \
 ### Embeddings: zero-config by default
 
 `EMBEDDER=auto` (the default) uses `fastembed` if installed, else OpenAI if
-`OPENAI_API_KEY` is set, else a dependency-free **HashingEmbedder** — so Day 1
-runs offline with no keys. Retrieval stays free; only generation (Day 2) costs
-money, which keeps the public demo cheap to run. Set `EMBEDDER` in `.env` to pin
-a backend. **Re-run `make ingest` whenever you change the embedder** (vector
-dimensions change).
+`OPENAI_API_KEY` is set, else a dependency-free **HashingEmbedder** — so it runs
+offline with no keys. Retrieval stays free either way; only generation costs
+money, which keeps the public demo cheap to run.
+
+**Recommended: `make install-embed`** then `make ingest`. This switches `auto`
+to real **semantic** embeddings (`fastembed`, BGE-small — local, no API key) and
+markedly improves recall on paraphrased questions the lexical fallback misses
+(e.g. *"I'm locked out and can't remember my login"* → the reset-password doc).
+A short BGE query-instruction prefix is applied to queries for an extra boost.
+
+Set `EMBEDDER` in `.env` to pin a backend. **Re-run `make ingest` whenever you
+change the embedder** — vector dimensions differ (hashing 1024, BGE-small 384).
 
 **Acceptance:** `make retrieve` prints PASS for all 5 hand-picked questions.

@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # auto -> fastembed if importable, else openai if key set, else hashing.
     embedder: str = "auto"
     fastembed_model: str = "BAAI/bge-small-en-v1.5"
+    # BGE-v1.5 retrieval instruction, prepended to queries only (boosts recall).
+    fastembed_query_prefix: str = "Represent this sentence for searching relevant passages: "
     hashing_dim: int = 1024
     openai_embed_model: str = "text-embedding-3-small"
     openai_api_key: str | None = None
@@ -63,9 +65,13 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash"
 
     # --- Agent behavior ------------------------------------------------------
-    # Low-confidence guardrail: if the top retrieval score is below this, the
-    # agent refuses/escalates instead of risking a hallucination. Tuned for the
-    # default HashingEmbedder; raise it when using real semantic embeddings.
+    # Low-confidence guardrail (coarse backstop): below this top-1 score the
+    # agent escalates WITHOUT calling the model. Kept low on purpose so it never
+    # wrongly refuses valid queries on either embedder (hashing in-scope ~0.3+,
+    # fastembed/BGE in-scope ~0.6+ — both well above 0.15; BGE's compressed
+    # range puts out-of-scope at ~0.5, so a high gate would misfire). The PRIMARY
+    # refusal layer is the model's grounding instruction, which declines when the
+    # retrieved sources don't actually answer the question.
     min_confidence: float = 0.15
     max_tool_iterations: int = 4
 
