@@ -3,126 +3,119 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Support &amp; Action Agents — that you can actually trust</title>
-  <meta name="description" content="Production-grade AI agents on top of your real data — grounded answers with citations, real CRM actions, and the proof most freelancers skip: evals, cost tracking, and observability." />
+  <title>Custom AI agents, built on your real data</title>
+  <meta name="description" content="I build website AI support & action agents on your own content — grounded answers with citations, real CRM actions, and the evals + cost tracking most builders skip." />
   <style>
     :root{
-      --ink:#0f1222; --muted:#5b6478; --bg:#ffffff; --soft:#f6f8fc; --soft2:#eef2fb;
-      --line:#e6eaf2; --brand:#4f7cff; --brand-ink:#3a63e0; --good:#16a34a; --radius:16px;
+      --bg:#f6fbf7; --surface:#ffffff; --soft:#eaf6ec; --text:#123224; --muted:#3d5f4e;
+      --brand:#0f5f36; --brand-ink:#0c4f2d; --border:#d6e7db; --border-strong:#aecdb9; --radius:16px;
     }
     *{box-sizing:border-box}
     html{scroll-behavior:smooth}
-    body{margin:0;color:var(--ink);background:var(--bg);
-      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    body{margin:0;color:var(--text);background:var(--bg);
+      font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
       -webkit-font-smoothing:antialiased}
-    a{color:var(--brand-ink);text-decoration:none}
-    .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
-    .eyebrow{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
-      color:var(--brand-ink);background:var(--soft2);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+    a{color:var(--brand);text-decoration:none}
+    .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
     h1,h2,h3{line-height:1.15;letter-spacing:-.02em;margin:0}
+    .eyebrow{display:inline-block;font-size:12.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--brand);background:var(--soft);border:1px solid var(--border);border-radius:999px;padding:5px 13px}
     .btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:13px 20px;font-weight:600;
       font-size:15px;cursor:pointer;border:1px solid transparent;transition:transform .12s,box-shadow .12s}
     .btn:hover{transform:translateY(-1px)}
-    .btn-primary{background:var(--brand);color:#fff;box-shadow:0 8px 22px rgba(79,124,255,.28)}
-    .btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+    .btn-primary{background:var(--brand);color:#fff;box-shadow:0 6px 18px rgba(15,95,54,.18)}
+    .btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border-strong)}
 
     /* nav */
-    header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(10px);
-      border-bottom:1px solid var(--line)}
+    header.nav{position:sticky;top:0;z-index:50;background:rgba(246,251,247,.85);
+      backdrop-filter:saturate(160%) blur(10px);border-bottom:1px solid var(--border)}
     .nav .wrap{display:flex;align-items:center;gap:20px;height:62px}
-    .brand{font-weight:700;font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
-    .brand .mark{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--brand),#8ab0ff)}
-    .nav nav{margin-left:auto;display:flex;gap:22px}
+    .brand{font-weight:700;font-size:17px;display:flex;align-items:center;gap:9px}
+    .brand .mark{width:22px;height:22px;border-radius:7px;background:var(--brand)}
+    .nav nav{margin-left:auto;display:flex;gap:24px}
     .nav nav a{color:var(--muted);font-size:14.5px;font-weight:500}
-    .nav nav a:hover{color:var(--ink)}
-    .nav .btn{padding:9px 15px}
+    .nav nav a:hover{color:var(--text)}
+    .nav .btn{padding:9px 16px}
     @media(max-width:720px){.nav nav{display:none}}
 
     /* hero */
-    .hero{padding:84px 0 28px;background:
-      radial-gradient(1100px 460px at 80% -10%,rgba(79,124,255,.10),transparent 60%),
-      radial-gradient(800px 360px at 0% 0%,rgba(138,176,255,.10),transparent 55%)}
-    .hero h1{font-size:50px;margin:18px 0 0;max-width:18ch}
-    .hero .lede{font-size:20px;color:var(--muted);margin:18px 0 0;max-width:60ch}
-    .hero .pos{margin-top:14px;font-weight:600;color:var(--ink)}
-    .hero .pos b{color:var(--brand-ink)}
+    .hero{padding:76px 0 18px}
+    .hero h1{font-size:50px;margin:18px 0 0;max-width:16ch}
+    .hero .lede{font-size:20px;color:var(--muted);margin:20px 0 0;max-width:56ch}
     .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
-    .hint{margin-top:12px;font-size:13.5px;color:var(--muted)}
-    @media(max-width:720px){.hero h1{font-size:36px}.hero{padding:54px 0 18px}}
+    @media(max-width:720px){.hero h1{font-size:35px}.hero{padding:48px 0 12px}}
+
+    /* try box */
+    .try{margin-top:34px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:22px 24px;box-shadow:0 1px 0 var(--border)}
+    .try .lbl{font-size:13px;color:var(--muted)}
+    .try .lbl b{color:var(--text)}
+    .try .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+    .trychip{font-size:14px;font-weight:500;background:var(--soft);border:1px solid var(--border-strong);
+      color:var(--brand-ink);border-radius:999px;padding:8px 14px;cursor:pointer;transition:background .12s,transform .12s}
+    .trychip:hover{background:#dff0e3;transform:translateY(-1px)}
+    .trychip::before{content:"›  ";color:var(--brand);font-weight:700}
 
     /* stats */
-    .stats{margin:40px 0 6px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-    .stat{background:var(--soft);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
-    .stat .n{font-size:30px;font-weight:700;letter-spacing:-.02em}
-    .stat .l{font-size:13px;color:var(--muted);margin-top:3px}
-    .stat .n .u{font-size:17px;color:var(--brand-ink);font-weight:600}
+    .stats{margin:40px 0 0;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .stat{background:var(--soft);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+    .stat .n{font-size:29px;font-weight:700;letter-spacing:-.02em}
+    .stat .n .u{font-size:16px;color:var(--brand);font-weight:600}
+    .stat .l{font-size:12.5px;color:var(--muted);margin-top:3px}
     @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
 
-    section{padding:54px 0}
-    .sec-head{max-width:62ch}
+    section{padding:56px 0}
+    .sec-head{max-width:60ch}
     .sec-head .eyebrow{margin-bottom:14px}
-    .sec-head h2{font-size:32px}
+    .sec-head h2{font-size:30px}
     .sec-head p{color:var(--muted);font-size:17px;margin:12px 0 0}
 
     /* services */
     .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:28px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px;transition:box-shadow .15s,border-color .15s}
-    .card:hover{box-shadow:0 12px 30px rgba(15,18,34,.06);border-color:#d4dcef}
-    .card h3{font-size:18px}
-    .card p{color:var(--muted);font-size:15px;margin:9px 0 0}
-    .card .tag{font-size:12px;font-weight:600;color:var(--brand-ink);background:var(--soft2);border-radius:999px;padding:3px 10px;display:inline-block;margin-bottom:12px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;
+      transition:border-color .15s,box-shadow .15s}
+    .card:hover{border-color:var(--border-strong);box-shadow:0 10px 26px rgba(15,95,54,.06)}
+    .card h3{font-size:17.5px}
+    .card p{color:var(--muted);font-size:14.5px;margin:8px 0 0}
     @media(max-width:720px){.cards{grid-template-columns:1fr}}
-    .services-note{margin-top:24px;background:linear-gradient(135deg,var(--soft),#fff);border:1px solid var(--line);
-      border-radius:var(--radius);padding:22px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
-    .services-note p{margin:0;font-size:16.5px}
-    .services-note .btn{margin-left:auto}
 
-    /* demo */
-    .demo{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-    .demo .panel{margin-top:24px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);
-      padding:26px;display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center}
-    .demo ul{margin:14px 0 0;padding-left:18px;color:var(--muted)}
-    .demo ul li{margin:6px 0}
-    .demo .try{background:var(--ink);color:#fff;border-radius:14px;padding:22px;text-align:center}
-    .demo .try .big{font-size:18px;font-weight:600}
-    .demo .try .sub{color:#aeb6c6;font-size:14px;margin-top:6px}
-    .demo .try .arrow{font-size:30px;margin-top:10px}
-    @media(max-width:720px){.demo .panel{grid-template-columns:1fr}}
+    /* test steps */
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
+    .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+    .step .num{width:28px;height:28px;border-radius:9px;background:var(--soft);border:1px solid var(--border-strong);
+      color:var(--brand);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+    .step h3{font-size:16px;margin-top:12px}
+    .step p{color:var(--muted);font-size:14px;margin:7px 0 0}
+    @media(max-width:720px){.steps{grid-template-columns:1fr}}
 
-    /* case study */
-    .flow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-top:26px}
-    .flow .step{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
-    .flow .step .k{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-ink);font-weight:700}
-    .flow .step .d{font-size:13px;color:var(--muted);margin-top:4px}
-    .flow .arrow{display:flex;align-items:center;color:#c2cbe0;font-size:20px}
-    .scorecard{margin-top:26px;width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
-    .scorecard th,.scorecard td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14.5px}
-    .scorecard th{background:var(--soft);color:var(--muted);font-weight:600}
-    .scorecard td.v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+    /* proof */
+    .proof{background:var(--soft);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+    .scorecard{margin-top:26px;width:100%;border-collapse:collapse;background:var(--surface);
+      border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+    .scorecard th,.scorecard td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14.5px}
+    .scorecard th{background:#e3f1e7;color:var(--muted);font-weight:600}
+    .scorecard td.v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
     .scorecard tr:last-child td{border-bottom:none}
-    .you{margin-top:26px;background:var(--soft);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px}
-    .you h3{font-size:17px}.you ol{margin:12px 0 0;padding-left:20px;color:var(--muted)}
-    .you ol li{margin:7px 0}
 
     /* about */
-    .about{display:grid;grid-template-columns:.9fr 1.1fr;gap:28px;align-items:start}
-    .about .avatar{width:74px;height:74px;border-radius:18px;background:linear-gradient(135deg,var(--brand),#8ab0ff);
-      display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;font-weight:700}
-    .about p{color:var(--muted)}
-    .about .ink{color:var(--ink)}
+    .about{display:grid;grid-template-columns:.8fr 1.2fr;gap:28px;align-items:start}
+    .about .avatar{width:72px;height:72px;border-radius:18px;background:var(--brand);
+      display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:700}
+    .about p{color:var(--muted)} .about .ink{color:var(--text)}
     @media(max-width:720px){.about{grid-template-columns:1fr}}
 
     /* contact */
-    .contact{background:linear-gradient(135deg,#101430,#1d2a55);color:#fff;border-radius:24px;margin:54px 0;padding:46px;text-align:center}
-    .contact h2{font-size:34px}
-    .contact p{color:#c3cbe0;font-size:18px;margin:14px auto 0;max-width:52ch}
-    .contact .btn{margin-top:26px;font-size:16px;padding:15px 26px}
-    .contact .mail{margin-top:14px;color:#9fb0e0;font-size:14px}
+    .contact{background:#0c1c14;color:#edf8f0;border-radius:24px;margin:56px 0;padding:46px;text-align:center}
+    .contact h2{font-size:32px}
+    .contact p{color:#b6d4c0;font-size:18px;margin:14px auto 0;max-width:50ch}
+    .contact .btn-primary{background:#8ed8ac;color:#0c1c14;margin-top:26px;font-size:16px;padding:15px 26px;
+      box-shadow:0 6px 20px rgba(142,216,172,.22)}
+    .contact .mail{margin-top:14px;color:#8ed8ac;font-size:14px}
 
-    footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-size:13.5px}
-    footer .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-    footer a{color:var(--muted)} footer a:hover{color:var(--ink)}
-    .dot{color:#c2cbe0}
+    footer{border-top:1px solid var(--border);padding:26px 0;color:var(--muted);font-size:13.5px}
+    footer .wrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+    footer a{color:var(--muted)} footer a:hover{color:var(--text)}
+    .dot{color:var(--border-strong)}
   </style>
 </head>
 <body>
@@ -130,8 +123,8 @@
     <div class="wrap">
       <div class="brand"><span class="mark"></span> Anchor</div>
       <nav>
-        <a href="#services">Services</a>
-        <a href="#demo">Live demo</a>
+        <a href="#services">What I build</a>
+        <a href="#test">Test it</a>
         <a href="#proof">Proof</a>
         <a href="#about">About</a>
       </nav>
@@ -142,20 +135,30 @@
   <!-- HERO -->
   <section class="hero">
     <div class="wrap">
-      <span class="eyebrow">Production AI agents · on your real data</span>
-      <h1>AI support &amp; action agents you can actually trust.</h1>
-      <p class="lede">I build website agents that answer from <em>your</em> knowledge base — with
-        citations — and take real actions like capturing leads and booking callbacks straight into
-        your CRM. Then I prove they work.</p>
-      <p class="pos"><b>Evaluated. Observable.</b> They don't break in production.</p>
+      <span class="eyebrow">AI agents on your real data</span>
+      <h1>Custom AI agents, built on your own content.</h1>
+      <p class="lede">I build website support &amp; action agents that <strong>answer your customers
+        from your docs</strong> — with citations — and <strong>take real actions</strong> like capturing
+        leads and booking callbacks into your CRM. Evaluated and observable, so they don't break in production.</p>
+
+      <!-- the one-click "try it" path -->
+      <div class="try">
+        <div class="lbl"><b>Don't take my word for it.</b> There's a live agent on this page right now,
+          running on a sample knowledge base. Click a question — it'll open and answer:</div>
+        <div class="chips">
+          <button class="trychip" onclick="tryAsk('How do I reset my password?')">How do I reset my password?</button>
+          <button class="trychip" onclick="tryAsk('Do you support SAML SSO?')">Do you support SAML SSO?</button>
+          <button class="trychip" onclick="tryAsk('Can someone call me about pricing?')">Can someone call me about pricing?</button>
+        </div>
+      </div>
+
       <div class="cta-row">
         <a class="btn btn-primary" href="mailto:chetansierra@gmail.com?subject=AI%20agent%20project&body=Hi%20Chetan%2C%20here's%20what%20I'm%20trying%20to%20do%3A">Email me — let's talk →</a>
-        <a class="btn btn-ghost" href="#demo">Try the live demo ↘</a>
+        <a class="btn btn-ghost" href="#proof">See the proof ↓</a>
       </div>
-      <p class="hint">There's a working agent in the corner of this page right now. Go on — ask it something.</p>
 
-      <!-- PROOF STATS -->
-      <div class="stats" id="proof">
+      <!-- proof at a glance -->
+      <div class="stats" id="proof-top">
         <div class="stat"><div class="n">92.7<span class="u">%</span></div><div class="l">answer accuracy (LLM-as-judge)</div></div>
         <div class="stat"><div class="n">100<span class="u">%</span></div><div class="l">retrieval hit-rate</div></div>
         <div class="stat"><div class="n"><span class="u">≈ $</span>0.01</div><div class="l">cost per question</div></div>
@@ -169,116 +172,83 @@
     <div class="wrap">
       <div class="sec-head">
         <span class="eyebrow">What I build</span>
-        <h2>Fixed-scope agents, shipped and proven.</h2>
-        <p>Productized work — each one a coded agent on your real data, deployed, with an eval
-          report and a cost dashboard so you know exactly how it behaves.</p>
+        <h2>Pick the outcome you need.</h2>
+        <p>Each one is a coded agent on your real data — deployed, with an eval report and a cost
+          dashboard so you know exactly how it behaves.</p>
       </div>
       <div class="cards">
         <div class="card">
-          <span class="tag">Most popular</span>
-          <h3>Website AI support agent</h3>
-          <p>A RAG agent over your docs and site that answers visitor questions with citations —
-            dropped onto your site with a single <code>&lt;script&gt;</code> tag, isolated so it
-            never clashes with your design.</p>
+          <h3>Website support agent</h3>
+          <p>Answers visitor questions from your docs, with citations — added to your site with one
+            <code>&lt;script&gt;</code> tag, isolated so it never clashes with your design.</p>
         </div>
         <div class="card">
-          <span class="tag">Takes action</span>
-          <h3>AI lead-capture &amp; booking agent</h3>
-          <p>Goes beyond chat: the agent captures leads and books callbacks, writing straight into
-            your CRM, Airtable, or a sheet — and won't invent answers it can't ground.</p>
+          <h3>Lead-capture &amp; booking agent</h3>
+          <p>Goes beyond chat: captures leads and books callbacks straight into your CRM or sheet —
+            and won't invent answers it can't ground.</p>
         </div>
         <div class="card">
-          <span class="tag">The coded version of no-code</span>
           <h3>“Automate this with AI”</h3>
-          <p>Wire an AI workflow to your actual tools and webhooks — the hard 20% that Make/n8n
-            can't do cleanly: custom logic, hosting, and reliability.</p>
+          <p>Wires an AI workflow to your real tools and webhooks — the hard 20% no-code tools can't
+            reach: custom logic, hosting, reliability.</p>
         </div>
         <div class="card">
-          <span class="tag">Reliability</span>
           <h3>Agent reliability audit</h3>
           <p>Already have a bot? I run my eval harness against it and hand you the numbers — where it
-            hallucinates, where it should refuse, and what it costs — plus the fixes.</p>
-        </div>
-      </div>
-      <div class="services-note">
-        <p><strong>No pricing tables, no funnel.</strong> Tell me what you're trying to do —
-          just send a mail and I'll take care of the rest.</p>
-        <a class="btn btn-primary" href="mailto:chetansierra@gmail.com?subject=AI%20agent%20project">Send a mail →</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- LIVE DEMO -->
-  <section id="demo" class="demo">
-    <div class="wrap">
-      <div class="sec-head">
-        <span class="eyebrow">See it for yourself</span>
-        <h2>The exact widget I'd put on your site.</h2>
-        <p>It's running right now on a demo knowledge base — <em>Nimbus</em>, a fictional B2B SaaS.
-          Point it at your docs and it works the same way.</p>
-      </div>
-      <div class="panel">
-        <div>
-          <strong>Try asking:</strong>
-          <ul>
-            <li>“How do I reset my password?” — a grounded answer with sources</li>
-            <li>“Do you support SAML SSO?” — note the caveats it includes</li>
-            <li>“Can someone call me about pricing?” — watch it take an action</li>
-            <li>“What's the weather today?” — watch it <em>refuse</em> instead of guessing</li>
-          </ul>
-          <p style="color:var(--muted);margin-top:14px">Flip <strong>“How it works”</strong> in the
-            widget to see retrieved chunks, scores, latency, tokens and the cost of each answer —
-            the same machinery I hand clients in an admin dashboard.</p>
-        </div>
-        <div class="try">
-          <div class="big">The assistant is in the corner →</div>
-          <div class="sub">bottom-right of this page</div>
-          <div class="arrow">↘</div>
+            hallucinates, where it should refuse, what it costs.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CASE STUDY -->
-  <section id="case">
+  <!-- TEST IT -->
+  <section id="test" class="proof">
     <div class="wrap">
       <div class="sec-head">
-        <span class="eyebrow">Case study</span>
-        <h2>Most support bots hallucinate. Nobody measures them.</h2>
-        <p>So I built one that's measured. This site runs it. Here's how it's put together and how
-          it actually scores.</p>
+        <span class="eyebrow">Test me in 30 seconds</span>
+        <h2>Try to break the agent. That's the point.</h2>
+        <p>The assistant in the corner runs on a demo knowledge base (<em>Nimbus</em>, a fictional
+          SaaS). Here's how to see whether it actually works:</p>
       </div>
-
-      <div class="flow">
-        <div class="step"><div class="k">Ingest</div><div class="d">your docs → token-aware chunks → embeddings</div></div>
-        <div class="arrow">→</div>
-        <div class="step"><div class="k">Retrieve</div><div class="d">semantic search for the most relevant chunks</div></div>
-        <div class="arrow">→</div>
-        <div class="step"><div class="k">Ground</div><div class="d">answer only from sources, with citations</div></div>
-        <div class="arrow">→</div>
-        <div class="step"><div class="k">Act</div><div class="d">capture lead / book callback to your CRM</div></div>
-        <div class="arrow">→</div>
-        <div class="step"><div class="k">Observe</div><div class="d">every run traced: tokens, $ cost, latency</div></div>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <h3>Ask something it should know</h3>
+          <p>“How do I reset my password?” — you get a grounded answer with the sources it used.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h3>Ask something off-topic</h3>
+          <p>“What's the weather today?” — it <strong>refuses and offers a human</strong> instead of
+            making something up.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h3>Flip “How it works”</h3>
+          <p>See the retrieved chunks, scores, latency, tokens and the <strong>cost of each answer</strong> —
+            the same machinery I hand you in a dashboard.</p>
+        </div>
       </div>
+    </div>
+  </section>
 
+  <!-- PROOF / CASE STUDY -->
+  <section id="proof">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Proof, not promises</span>
+        <h2>Measured against a labeled test set.</h2>
+        <p>Most support bots hallucinate and nobody measures them. This one is graded on 41 labeled
+          cases every time it changes — here's the latest run (Claude Sonnet 4.6).</p>
+      </div>
       <table class="scorecard">
-        <tr><th>Measured on a 41-case labeled eval (Claude Sonnet 4.6)</th><th class="v">Result</th></tr>
+        <tr><th>Metric</th><th class="v">Result</th></tr>
         <tr><td>Overall answer accuracy (LLM-as-judge against a rubric)</td><td class="v">92.7%</td></tr>
         <tr><td>Retrieval hit-rate (right source in the top-k)</td><td class="v">100%</td></tr>
         <tr><td>Refusal correctness on out-of-scope questions</td><td class="v">8 / 8</td></tr>
         <tr><td>Tool-call correctness (right action, right args)</td><td class="v">6 / 6</td></tr>
         <tr><td>Cost to run the whole eval</td><td class="v">≈ $0.39</td></tr>
       </table>
-
-      <div class="you">
-        <h3>What I'd do for you</h3>
-        <ol>
-          <li>Ingest your help center / docs and build the retrieval index.</li>
-          <li>Wire the actions that matter to you — leads, bookings, tickets — into your CRM or sheet.</li>
-          <li>Ship the widget onto your site (one script tag) and deploy the API.</li>
-          <li>Hand you the eval report and the live cost &amp; observability dashboard.</li>
-        </ol>
-      </div>
     </div>
   </section>
 
@@ -287,16 +257,15 @@
     <div class="wrap about">
       <div>
         <div class="avatar">C</div>
-        <h2 style="font-size:28px;margin-top:16px">About</h2>
+        <h2 style="font-size:26px;margin-top:16px">About</h2>
       </div>
       <div>
         <p class="ink" style="font-size:18px"><strong>Hi, I'm Chetan</strong> — a backend engineer
-          (BITS) with ~4.5 years building high-throughput systems in Java, Kafka and Go, mostly in
-          the finance domain.</p>
-        <p>My edge isn't prompt-wrangling — that's a crowded race. It's the production 20% the
-          no-code crowd can't reach: custom webhooks, hosting, evaluation, cost caps and
-          observability. The things that decide whether an agent survives contact with real users.</p>
-        <p>That's why everything I ship comes with numbers and a dashboard, not just a demo.</p>
+          (BITS) with ~4.5 years building high-throughput systems in Java, Kafka and Go, mostly in finance.</p>
+        <p>My edge isn't prompt-wrangling — it's the production 20% the no-code crowd can't reach:
+          custom webhooks, hosting, evaluation, cost caps and observability. The things that decide
+          whether an agent survives contact with real users. That's why everything I ship comes with
+          numbers and a dashboard, not just a demo.</p>
       </div>
     </div>
   </section>
@@ -304,9 +273,8 @@
   <!-- CONTACT -->
   <div class="wrap">
     <div class="contact" id="contact">
-      <h2>Let's build something that works.</h2>
-      <p>No forms, no funnel, no pressure. Tell me what you're trying to do —
-        just send a mail and I'll take care of the rest.</p>
+      <h2>Tell me what you're trying to do.</h2>
+      <p>No forms, no funnel, no pressure. Just send a mail and I'll take care of the rest.</p>
       <a class="btn btn-primary" href="mailto:chetansierra@gmail.com?subject=AI%20agent%20project&body=Hi%20Chetan%2C%20here's%20what%20I'm%20trying%20to%20do%3A">Email me →</a>
       <div class="mail">chetansierra@gmail.com</div>
     </div>
@@ -318,18 +286,25 @@
       <span class="dot">·</span>
       <span>AI support &amp; action agents on your real data</span>
       <span class="dot">·</span>
-      <a href="/admin">Observability dashboard</a>
+      <a href="/admin">Dashboard</a>
       <span class="dot">·</span>
       <a href="/docs">API</a>
     </div>
   </footer>
 
-  <script>document.getElementById("yr").textContent = new Date().getFullYear();</script>
+  <script>
+    document.getElementById("yr").textContent = new Date().getFullYear();
+    // Hero chips drive the live widget (falls back to scrolling if it's not ready).
+    function tryAsk(q){
+      if (window.AnchorWidget && window.AnchorWidget.ask) window.AnchorWidget.ask(q);
+      else location.hash = "#test";
+    }
+  </script>
 
   <!-- The live agent: the same one-script-tag embed a client would add. -->
   <script src="/widget.js"
           data-business="Nimbus"
-          data-color="#4f7cff"
+          data-color="#0f5f36"
           data-position="bottom-right"
           data-machinery="off"></script>
 </body>
