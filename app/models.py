@@ -94,6 +94,19 @@ class ChatResponse(BaseModel):
     iterations: int = 0
 
 
+class KbDoc(BaseModel):
+    doc_id: str
+    title: str
+    source: str
+    chunks: int
+
+
+class KbResponse(BaseModel):
+    business: str
+    count: int
+    documents: list[KbDoc]
+
+
 class LeadEvent(BaseModel):
     id: str
     type: str

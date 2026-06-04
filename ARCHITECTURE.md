@@ -27,7 +27,7 @@ anchor/
 ├── app/                      # the application
 │   ├── config.py             # env-driven settings (pydantic-settings); works keyless
 │   ├── models.py             # FastAPI request/response schemas (pydantic)
-│   ├── main.py               # FastAPI app: / (portfolio) /health /ingest /query /chat /leads /admin /widget.js
+│   ├── main.py               # FastAPI app: / (portfolio) /health /ingest /query /chat /leads /admin /widget.js /kb
 │   │
 │   ├── kb_loader.py          # load markdown KB docs from data/kb
 │   ├── chunking.py           # token-aware chunking with overlap

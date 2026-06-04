@@ -93,3 +93,13 @@ def test_widget_routes_serve_the_embed():
         demo = c.get("/demo")
         assert demo.status_code == 200
         assert "/widget.js" in demo.text
+
+
+def test_kb_lists_the_documents_the_agent_knows():
+    with TestClient(app) as c:
+        kb = c.get("/kb").json()
+        assert kb["business"]
+        assert kb["count"] >= 1
+        assert kb["count"] == len(kb["documents"])
+        doc = kb["documents"][0]
+        assert doc["title"] and doc["doc_id"] and doc["chunks"] >= 1
