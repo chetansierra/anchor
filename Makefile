@@ -1,7 +1,7 @@
 PY := ./.venv/bin/python
 PIP := $(PY) -m pip
 
-.PHONY: install install-embed ingest retrieve run test eval clean
+.PHONY: install install-embed ingest retrieve run test eval costs clean
 
 install:  ## Create venv and install core deps
 	python3 -m venv .venv
@@ -25,6 +25,9 @@ test:  ## Run the test suite
 
 eval:  ## Run the eval harness (accuracy + failure breakdown)
 	$(PY) -m scripts.eval_cli
+
+costs:  ## Daily cost rollup over recorded traces
+	$(PY) -m scripts.costs_cli
 
 clean:  ## Remove the built index
 	rm -rf data/index

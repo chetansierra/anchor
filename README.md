@@ -28,7 +28,8 @@ it at your own docs and it works the same way.
   plus a grounding instruction that makes the model decline when the sources
   don't cover the question.
 - **Observable.** Every `/chat` response includes tokens, **$ cost**, latency, the
-  retrieved chunks, and any tool calls.
+  retrieved chunks, and any tool calls — and every run is persisted as a trace you
+  can replay in the built-in `/admin` dashboard, with a daily cost rollup.
 - **Evaluated.** A built-in harness scores answer correctness (LLM-as-judge),
   retrieval hit-rate, refusal correctness, and tool-call correctness.
 
@@ -58,6 +59,9 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
 | `POST /query` | raw retrieval — top-k chunks for a query |
 | `POST /chat` | the agent — grounded answer + citations + actions |
 | `GET /leads` | recent leads / callbacks captured by the agent |
+| `GET /admin` | observability dashboard (cost, latency, conversation traces) |
+| `GET /admin/overview` | rollup: total/daily cost, tokens, escalation rate |
+| `GET /admin/conversations[/{id}]` | recent runs (filter `?outcome=`) + full trace |
 
 ```bash
 curl -s -X POST localhost:8000/chat -H 'content-type: application/json' \
@@ -111,6 +115,21 @@ python -m scripts.eval_cli ans-2fa-2 ans-sso-2   # re-run specific case ids
 
 The harness runs on the keyless fake provider for CI plumbing; real numbers need
 an API key.
+
+## Observability
+
+Every `/chat` run is persisted as a trace — question, answer, outcome, retrieved
+chunks with scores, tool calls, tokens, **$ cost**, and latency. Inspect them two
+ways:
+
+```bash
+open http://127.0.0.1:8000/admin   # dashboard: cost/latency cards, daily rollup,
+                                   # click any conversation for its full trace
+make costs                         # the same rollup in the terminal
+```
+
+So you can answer the two questions every client asks — *"can I see what it did?"*
+and *"what will this cost me to run?"* — from real recorded runs.
 
 ## Tests & CI
 

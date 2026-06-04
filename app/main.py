@@ -10,23 +10,28 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 from . import __version__
+from .admin_page import ADMIN_HTML
 from .agent import Agent, AgentResult
 from .config import get_settings
 from .ingest import run_ingest
 from .models import (
     ChatRequest,
     ChatResponse,
+    ConversationsResponse,
     HealthResponse,
     IngestResponse,
     LeadsResponse,
+    OverviewResponse,
     QueryRequest,
     QueryResponse,
     RetrievedChunk,
 )
 from .retrieval import Retriever
 from .tools import MockCRM
+from .traces import TraceStore
 from .vectorstore import LocalVectorStore
 
 # Module-level state for the single-process demo.
@@ -176,7 +181,12 @@ def chat(req: ChatRequest) -> ChatResponse:
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"LLM provider unavailable: {exc}") from exc
     assert agent is not None
-    return _to_chat_response(agent.run(req.message, req.top_k))
+    result = agent.run(req.message, req.top_k)
+    try:  # best-effort: a trace write must never break a live answer
+        TraceStore(get_settings().traces_path).record(req.message, result)
+    except Exception:
+        pass
+    return _to_chat_response(result)
 
 
 @app.get("/leads", response_model=LeadsResponse)
@@ -184,3 +194,35 @@ def leads(limit: int = 20) -> LeadsResponse:
     settings = get_settings()
     events = MockCRM(settings.crm_path).recent(limit)
     return LeadsResponse(count=len(events), events=events)
+
+
+# --- Observability / admin (Day 4) ------------------------------------------
+
+
+@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
+def admin_dashboard() -> HTMLResponse:
+    return HTMLResponse(ADMIN_HTML)
+
+
+@app.get("/admin/overview", response_model=OverviewResponse)
+def admin_overview() -> OverviewResponse:
+    ov = TraceStore(get_settings().traces_path).overview()
+    return OverviewResponse(**vars(ov))
+
+
+@app.get("/admin/conversations", response_model=ConversationsResponse)
+def admin_conversations(limit: int = 50, outcome: str | None = None) -> ConversationsResponse:
+    """Recent conversation summaries. Pass ?outcome=escalated|error to list the
+    runs worth reviewing; each row carries its own cost-per-conversation."""
+    rows = TraceStore(get_settings().traces_path).recent(limit, outcome)
+    return ConversationsResponse(count=len(rows), conversations=rows)
+
+
+@app.get("/admin/conversations/{trace_id}")
+def admin_conversation(trace_id: str) -> dict:
+    """The full trace for one conversation — retrieved chunks + scores, tool
+    calls, tokens, $ cost, latency. (Acceptance: open any past run, see it all.)"""
+    trace = TraceStore(get_settings().traces_path).get(trace_id)
+    if trace is None:
+        raise HTTPException(status_code=404, detail=f"No trace {trace_id!r}.")
+    return trace
