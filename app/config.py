@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     crm_dir: str = "data/crm"
     crm_webhook_url: str | None = None  # optional: POST each event here too
 
+    # --- Observability (Day 4) ----------------------------------------------
+    # Per-run traces (latency, tokens, $, retrieved chunks, tool calls, outcome)
+    # are appended here as JSONL; the /admin view and cost rollup read them back.
+    traces_dir: str = "data/traces"
+
     def path(self, value: str) -> Path:
         p = Path(value)
         return p if p.is_absolute() else ROOT / p
@@ -98,6 +103,10 @@ class Settings(BaseSettings):
     @property
     def crm_path(self) -> Path:
         return self.path(self.crm_dir)
+
+    @property
+    def traces_path(self) -> Path:
+        return self.path(self.traces_dir)
 
 
 @lru_cache

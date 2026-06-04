@@ -104,3 +104,45 @@ class LeadEvent(BaseModel):
 class LeadsResponse(BaseModel):
     count: int
     events: list[LeadEvent]
+
+
+# --- Day 4: observability / admin -------------------------------------------
+
+
+class ConversationSummary(BaseModel):
+    id: str
+    created_at: str
+    question: str
+    outcome: str  # answered | escalated | error
+    model: str
+    latency_ms: float
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    tools: list[str] = []
+
+
+class ConversationsResponse(BaseModel):
+    count: int
+    conversations: list[ConversationSummary]
+
+
+class DailyCost(BaseModel):
+    date: str
+    runs: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    escalated: int
+
+
+class OverviewResponse(BaseModel):
+    total_runs: int
+    total_cost_usd: float
+    avg_cost_per_conversation: float
+    avg_latency_ms: float
+    total_input_tokens: int
+    total_output_tokens: int
+    outcomes: dict = {}
+    escalation_rate: float
+    daily: list[DailyCost] = []

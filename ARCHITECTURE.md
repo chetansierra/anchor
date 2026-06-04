@@ -27,7 +27,7 @@ anchor/
 ├── app/                      # the application
 │   ├── config.py             # env-driven settings (pydantic-settings); works keyless
 │   ├── models.py             # FastAPI request/response schemas (pydantic)
-│   ├── main.py               # FastAPI app: /health /ingest /query /chat /leads
+│   ├── main.py               # FastAPI app: /health /ingest /query /chat /leads /admin
 │   │
 │   ├── kb_loader.py          # load markdown KB docs from data/kb
 │   ├── chunking.py           # token-aware chunking with overlap
@@ -37,6 +37,8 @@ anchor/
 │   ├── retrieval.py          # query-time: embed query → cosine search
 │   ├── tools.py              # agent tools (capture_lead/book_callback) + mock CRM sink
 │   ├── agent.py              # the agent loop (retrieve → ground → answer/cite or act)
+│   ├── traces.py             # per-run trace store (JSONL) + cost/outcome rollups
+│   ├── admin_page.py         # the /admin dashboard (one self-contained HTML page)
 │   │
 │   ├── llm/                  # provider-agnostic LLM layer (strategy pattern)
 │   │   ├── base.py           #   normalized types + LLMProvider protocol
@@ -57,9 +59,10 @@ anchor/
 │   ├── kb/                   # ~22 seeded Nimbus help-center markdown docs (source)
 │   ├── index/                # built vector index (generated, gitignored)
 │   ├── crm/                  # mock CRM events.jsonl (generated, gitignored)
+│   ├── traces/               # per-run traces.jsonl (generated, gitignored)
 │   └── eval/dataset.jsonl    # 41 labeled eval cases (report.json is gitignored)
 │
-├── scripts/                  # CLIs: ingest_cli, retrieve_cli (acceptance), eval_cli
+├── scripts/                  # CLIs: ingest_cli, retrieve_cli (acceptance), eval_cli, costs_cli
 ├── tests/                    # keyless pytest suite (retrieval, agent, translation, eval)
 ├── .github/workflows/ci.yml  # CI: install → ingest → pytest
 ├── Dockerfile                # deploy-ready image (Railway/Fly/Render)
@@ -90,8 +93,18 @@ anchor/
 - **eval** — runs the agent over the labeled dataset and grades it (retrieval
   hit-rate, answer correctness via LLM-as-judge, refusal correctness, tool
   correctness), emitting an accuracy report + failure breakdown.
-- **main** — the FastAPI surface tying it together; loads the index at startup and
-  builds the agent lazily on top of it.
+- **traces** — observability sink. Each `/chat` run is appended to `traces.jsonl`
+  (question, answer, outcome, retrieved chunks + scores, tool calls, tokens, $
+  cost, latency) and rolled up by outcome and by day. Same append-only JSONL
+  shape as the CRM — no database to run. The `costs_cli` reads it for the
+  "what will this cost to run?" rollup.
+- **admin_page** — the `/admin` dashboard: one dependency-free HTML page that
+  calls the admin JSON endpoints and renders headline cost/latency cards, the
+  daily cost rollup, and a click-to-expand list of recent conversations with
+  their full trace.
+- **main** — the FastAPI surface tying it together; loads the index at startup,
+  builds the agent lazily on top of it, records a trace per `/chat`, and serves
+  the admin view (`/admin`, `/admin/overview`, `/admin/conversations[/{id}]`).
 
 ## Request flows
 
@@ -109,6 +122,15 @@ question → retrieval.search (top-k)
         → LLMProvider.generate(tools=[capture_lead, book_callback])
         → tool_use? → tools.run → MockCRM.record → feed result back → loop
         → final answer + citations + tokens/cost/latency
+        → TraceStore.record (best-effort; never blocks the answer)
+```
+
+**Observe** (`GET /admin` + `make costs`)
+```
+data/traces/traces.jsonl → TraceStore.overview  → /admin/overview (cards + daily $ rollup)
+                         → TraceStore.recent     → /admin/conversations (?outcome filter)
+                         → TraceStore.get(id)    → /admin/conversations/{id} (full trace)
+                         → scripts.costs_cli      → daily cost rollup in the terminal
 ```
 
 **Eval** (`make eval`)
