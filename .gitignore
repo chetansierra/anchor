@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/index/
+.pytest_cache/
+.DS_Store
+*.egg-info/
+
+# Private planning doc — kept local, not published
+MAIN_GOAL.MD

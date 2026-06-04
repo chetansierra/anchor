@@ -1,0 +1,5 @@
+# Optional, higher-quality local embeddings (no API key, ONNX runtime).
+# Install with: ./.venv/bin/python -m pip install -r requirements-optional.txt
+# If this fails or you skip it, the app falls back to the dependency-free
+# HashingEmbedder so the pipeline still runs end-to-end.
+fastembed>=0.3

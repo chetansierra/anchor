@@ -1,0 +1,30 @@
+PY := ./.venv/bin/python
+PIP := $(PY) -m pip
+
+.PHONY: install install-embed ingest retrieve run test eval clean
+
+install:  ## Create venv and install core deps
+	python3 -m venv .venv
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements.txt
+
+install-embed:  ## Optional: real local embeddings (fastembed)
+	$(PIP) install -r requirements-optional.txt
+
+ingest:  ## Build/rebuild the KB index
+	$(PY) -m scripts.ingest_cli
+
+retrieve:  ## Day 1 acceptance: top-k for 5 hand-picked questions
+	$(PY) -m scripts.retrieve_cli
+
+run:  ## Serve the API (http://127.0.0.1:8000/docs)
+	$(PY) -m uvicorn app.main:app --reload
+
+test:  ## Run the test suite
+	$(PY) -m pytest -q
+
+eval:  ## Placeholder until Day 3
+	@echo "Eval harness arrives on Day 3."
+
+clean:  ## Remove the built index
+	rm -rf data/index
