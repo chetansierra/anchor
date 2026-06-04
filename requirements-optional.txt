@@ -3,3 +3,8 @@
 # If this fails or you skip it, the app falls back to the dependency-free
 # HashingEmbedder so the pipeline still runs end-to-end.
 fastembed>=0.3
+
+# Alternative LLM providers (lazy-imported only when LLM_PROVIDER selects them).
+# Anthropic ships in requirements.txt as the default provider.
+openai>=1.40
+google-genai>=0.3
