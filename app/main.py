@@ -111,13 +111,11 @@ def _to_chat_response(result: AgentResult) -> ChatResponse:
     )
 
 
-@app.get("/", include_in_schema=False)
-def root() -> dict:
-    return {
-        "service": "Anchor Support Agent",
-        "version": __version__,
-        "endpoints": ["/health", "/ingest", "/query", "/chat", "/leads", "/docs"],
-    }
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def root() -> HTMLResponse:
+    """The portfolio site — hero, services, the live demo (this widget), the eval
+    case study, and a single email CTA. The front door for visitors and clients."""
+    return HTMLResponse((_STATIC / "portfolio.html").read_text(encoding="utf-8"))
 
 
 @app.get("/health", response_model=HealthResponse)

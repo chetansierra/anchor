@@ -27,7 +27,7 @@ anchor/
 ├── app/                      # the application
 │   ├── config.py             # env-driven settings (pydantic-settings); works keyless
 │   ├── models.py             # FastAPI request/response schemas (pydantic)
-│   ├── main.py               # FastAPI app: /health /ingest /query /chat /leads /admin /widget.js
+│   ├── main.py               # FastAPI app: / (portfolio) /health /ingest /query /chat /leads /admin /widget.js
 │   │
 │   ├── kb_loader.py          # load markdown KB docs from data/kb
 │   ├── chunking.py           # token-aware chunking with overlap
@@ -40,7 +40,7 @@ anchor/
 │   ├── traces.py             # per-run trace store (JSONL) + cost/outcome rollups
 │   ├── admin_page.py         # the /admin dashboard (one self-contained HTML page)
 │   ├── limits.py             # public-demo guardrails: per-IP rate limit + daily $ ceiling
-│   ├── static/               # widget.js (shadow-DOM chat widget) + embed-test.html
+│   ├── static/               # portfolio.html (landing page) + widget.js + embed-test.html
 │   │
 │   ├── llm/                  # provider-agnostic LLM layer (strategy pattern)
 │   │   ├── base.py           #   normalized types + LLMProvider protocol
@@ -115,10 +115,15 @@ anchor/
   themeable via `data-` attributes. Suggested-prompt chips, visible tool actions,
   citations, and a "Show how it works" toggle (default off) that reveals the
   machinery — retrieved chunks + scores, latency, tokens, $ cost, tool-call JSON.
+- **static/portfolio.html** — the landing page served at `/`: hero + positioning,
+  productized services (no price tables — a single email CTA), the live demo
+  (this same widget on the seeded KB), and a case study that leads with the eval
+  numbers (accuracy, retrieval hit-rate, cost-per-question). Self-contained HTML/CSS.
 - **main** — the FastAPI surface tying it together; loads the index at startup,
   builds the agent lazily, enforces the demo guardrails and records a trace per
-  `/chat`, serves the admin view, and serves the widget (`/widget.js`,
-  `/widget/config`, `/demo`). CORS is enabled so the widget works cross-origin.
+  `/chat`, serves the portfolio at `/`, the admin view, and the widget
+  (`/widget.js`, `/widget/config`, `/demo`). CORS is enabled so the widget works
+  cross-origin.
 
 ## Request flows
 

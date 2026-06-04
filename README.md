@@ -61,6 +61,7 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
 
 | Endpoint | Purpose |
 |---|---|
+| `GET /` | portfolio landing page (hero, services, live demo, case study) |
 | `GET /health` | status, loaded index, active provider/model |
 | `POST /ingest` | (re)build the KB index from `data/kb/` |
 | `POST /query` | raw retrieval — top-k chunks for a query |
