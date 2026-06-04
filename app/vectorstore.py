@@ -88,6 +88,17 @@ class LocalVectorStore:
     def n_documents(self) -> int:
         return len({r.doc_id for r in self._records})
 
+    def documents(self) -> list[dict]:
+        """Unique source documents in the index (for showing what the agent knows)."""
+        docs: dict[str, dict] = {}
+        for r in self._records:
+            d = docs.get(r.doc_id)
+            if d is None:
+                docs[r.doc_id] = {"doc_id": r.doc_id, "title": r.title, "source": r.source, "chunks": 1}
+            else:
+                d["chunks"] += 1
+        return list(docs.values())
+
     # --- persistence ---------------------------------------------------------
     def save(self) -> None:
         self.index_dir.mkdir(parents=True, exist_ok=True)

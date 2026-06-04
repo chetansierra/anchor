@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Custom AI agents, built on your real data</title>
-  <meta name="description" content="I build website AI support & action agents on your own content — grounded answers with citations, real CRM actions, and the evals + cost tracking most builders skip." />
+  <title>An AI agent that answers your customers — and captures the lead</title>
+  <meta name="description" content="I build website AI support & sales agents on your own docs — instant grounded answers with sources, automatic lead capture and bookings, proven with real evals." />
   <style>
     :root{
       --bg:#f6fbf7; --surface:#ffffff; --soft:#eaf6ec; --text:#123224; --muted:#3d5f4e;
@@ -18,15 +18,16 @@
     a{color:var(--brand);text-decoration:none}
     .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
     h1,h2,h3{line-height:1.15;letter-spacing:-.02em;margin:0}
-    .eyebrow{display:inline-block;font-size:12.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
-      color:var(--brand);background:var(--soft);border:1px solid var(--border);border-radius:999px;padding:5px 13px}
+    .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;letter-spacing:.06em;
+      text-transform:uppercase;color:var(--brand);background:var(--soft);border:1px solid var(--border);
+      border-radius:999px;padding:6px 13px}
+    .eyebrow .pulse{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
     .btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:13px 20px;font-weight:600;
       font-size:15px;cursor:pointer;border:1px solid transparent;transition:transform .12s,box-shadow .12s}
     .btn:hover{transform:translateY(-1px)}
     .btn-primary{background:var(--brand);color:#fff;box-shadow:0 6px 18px rgba(15,95,54,.18)}
     .btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border-strong)}
 
-    /* nav */
     header.nav{position:sticky;top:0;z-index:50;background:rgba(246,251,247,.85);
       backdrop-filter:saturate(160%) blur(10px);border-bottom:1px solid var(--border)}
     .nav .wrap{display:flex;align-items:center;gap:20px;height:62px}
@@ -36,60 +37,69 @@
     .nav nav a{color:var(--muted);font-size:14.5px;font-weight:500}
     .nav nav a:hover{color:var(--text)}
     .nav .btn{padding:9px 16px}
-    @media(max-width:720px){.nav nav{display:none}}
+    @media(max-width:760px){.nav nav{display:none}}
 
     /* hero */
-    .hero{padding:76px 0 18px}
-    .hero h1{font-size:50px;margin:18px 0 0;max-width:16ch}
-    .hero .lede{font-size:20px;color:var(--muted);margin:20px 0 0;max-width:56ch}
-    .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
-    @media(max-width:720px){.hero h1{font-size:35px}.hero{padding:48px 0 12px}}
+    .hero{padding:72px 0 16px}
+    .hero h1{font-size:48px;margin:18px 0 0;max-width:17ch}
+    .hero h1 .hl{color:var(--brand)}
+    .hero .lede{font-size:19px;color:var(--muted);margin:20px 0 0;max-width:58ch}
+    .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+    @media(max-width:760px){.hero h1{font-size:34px}.hero{padding:46px 0 10px}}
 
     /* try box */
-    .try{margin-top:34px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-      padding:22px 24px;box-shadow:0 1px 0 var(--border)}
-    .try .lbl{font-size:13px;color:var(--muted)}
+    .try{margin-top:32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+    .try .lbl{font-size:14px;color:var(--muted)}
     .try .lbl b{color:var(--text)}
-    .try .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+    .try .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:13px}
     .trychip{font-size:14px;font-weight:500;background:var(--soft);border:1px solid var(--border-strong);
-      color:var(--brand-ink);border-radius:999px;padding:8px 14px;cursor:pointer;transition:background .12s,transform .12s}
+      color:var(--brand-ink);border-radius:999px;padding:9px 14px;cursor:pointer;transition:.12s;text-align:left}
     .trychip:hover{background:#dff0e3;transform:translateY(-1px)}
     .trychip::before{content:"›  ";color:var(--brand);font-weight:700}
 
     /* stats */
-    .stats{margin:40px 0 0;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .stats{margin:36px 0 0;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
     .stat{background:var(--soft);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
-    .stat .n{font-size:29px;font-weight:700;letter-spacing:-.02em}
+    .stat .n{font-size:28px;font-weight:700;letter-spacing:-.02em}
     .stat .n .u{font-size:16px;color:var(--brand);font-weight:600}
     .stat .l{font-size:12.5px;color:var(--muted);margin-top:3px}
-    @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
 
-    section{padding:56px 0}
-    .sec-head{max-width:60ch}
+    section{padding:54px 0}
+    .sec-head{max-width:62ch}
     .sec-head .eyebrow{margin-bottom:14px}
     .sec-head h2{font-size:30px}
     .sec-head p{color:var(--muted);font-size:17px;margin:12px 0 0}
+
+    /* how it works */
+    .how{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
+    .how .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px}
+    .how .num{width:30px;height:30px;border-radius:9px;background:var(--soft);border:1px solid var(--border-strong);
+      color:var(--brand);font-weight:700;display:flex;align-items:center;justify-content:center}
+    .how h3{font-size:17px;margin-top:13px}
+    .how p{color:var(--muted);font-size:14.5px;margin:7px 0 0}
+    @media(max-width:760px){.how{grid-template-columns:1fr}}
+
+    /* knowledge base */
+    .kb{background:var(--soft);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+    .kb .head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+    .kb .count{font-weight:700;color:var(--brand)}
+    .kbdocs{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+    .doc{font-size:13.5px;background:var(--surface);border:1px solid var(--border-strong);color:var(--brand-ink);
+      border-radius:10px;padding:8px 13px;cursor:pointer;transition:.12s}
+    .doc:hover{background:#fff;border-color:var(--brand);transform:translateY(-1px)}
+    .doc .ic{color:var(--brand);margin-right:6px}
+    .kb .hint{margin-top:16px;font-size:13.5px;color:var(--muted)}
 
     /* services */
     .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:28px}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;
       transition:border-color .15s,box-shadow .15s}
     .card:hover{border-color:var(--border-strong);box-shadow:0 10px 26px rgba(15,95,54,.06)}
-    .card h3{font-size:17.5px}
-    .card p{color:var(--muted);font-size:14.5px;margin:8px 0 0}
-    @media(max-width:720px){.cards{grid-template-columns:1fr}}
-
-    /* test steps */
-    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
-    .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
-    .step .num{width:28px;height:28px;border-radius:9px;background:var(--soft);border:1px solid var(--border-strong);
-      color:var(--brand);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
-    .step h3{font-size:16px;margin-top:12px}
-    .step p{color:var(--muted);font-size:14px;margin:7px 0 0}
-    @media(max-width:720px){.steps{grid-template-columns:1fr}}
+    .card h3{font-size:17.5px} .card p{color:var(--muted);font-size:14.5px;margin:8px 0 0}
+    @media(max-width:760px){.cards{grid-template-columns:1fr}}
 
     /* proof */
-    .proof{background:var(--soft);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
     .scorecard{margin-top:26px;width:100%;border-collapse:collapse;background:var(--surface);
       border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
     .scorecard th,.scorecard td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14.5px}
@@ -102,10 +112,10 @@
     .about .avatar{width:72px;height:72px;border-radius:18px;background:var(--brand);
       display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:700}
     .about p{color:var(--muted)} .about .ink{color:var(--text)}
-    @media(max-width:720px){.about{grid-template-columns:1fr}}
+    @media(max-width:760px){.about{grid-template-columns:1fr}}
 
     /* contact */
-    .contact{background:#0c1c14;color:#edf8f0;border-radius:24px;margin:56px 0;padding:46px;text-align:center}
+    .contact{background:#0c1c14;color:#edf8f0;border-radius:24px;margin:54px 0;padding:46px;text-align:center}
     .contact h2{font-size:32px}
     .contact p{color:#b6d4c0;font-size:18px;margin:14px auto 0;max-width:50ch}
     .contact .btn-primary{background:#8ed8ac;color:#0c1c14;margin-top:26px;font-size:16px;padding:15px 26px;
@@ -123,10 +133,10 @@
     <div class="wrap">
       <div class="brand"><span class="mark"></span> Anchor</div>
       <nav>
-        <a href="#services">What I build</a>
-        <a href="#test">Test it</a>
+        <a href="#how">How it works</a>
+        <a href="#knows">What it knows</a>
+        <a href="#services">Services</a>
         <a href="#proof">Proof</a>
-        <a href="#about">About</a>
       </nav>
       <a class="btn btn-primary" href="mailto:chetansierra@gmail.com?subject=AI%20agent%20project">Get in touch</a>
     </div>
@@ -135,30 +145,28 @@
   <!-- HERO -->
   <section class="hero">
     <div class="wrap">
-      <span class="eyebrow">AI agents on your real data</span>
-      <h1>Custom AI agents, built on your own content.</h1>
-      <p class="lede">I build website support &amp; action agents that <strong>answer your customers
-        from your docs</strong> — with citations — and <strong>take real actions</strong> like capturing
-        leads and booking callbacks into your CRM. Evaluated and observable, so they don't break in production.</p>
+      <span class="eyebrow"><span class="pulse"></span> Website AI support &amp; sales agent</span>
+      <h1>An AI agent that answers your customers — and <span class="hl">captures the lead</span>.</h1>
+      <p class="lede">Your help docs already hold the answers. I build an agent that <strong>reads them and
+        replies instantly — with sources</strong> — then captures the lead or books the call, instead of
+        letting visitors bounce. And I prove it works with real evals, not vibes.</p>
 
-      <!-- the one-click "try it" path -->
       <div class="try">
-        <div class="lbl"><b>Don't take my word for it.</b> There's a live agent on this page right now,
-          running on a sample knowledge base. Click a question — it'll open and answer:</div>
+        <div class="lbl"><b>There's a real one live on this page</b> — trained on a sample company's
+          (Nimbus) help center. Don't take my word for it; click a question and watch it answer:</div>
         <div class="chips">
           <button class="trychip" onclick="tryAsk('How do I reset my password?')">How do I reset my password?</button>
-          <button class="trychip" onclick="tryAsk('Do you support SAML SSO?')">Do you support SAML SSO?</button>
-          <button class="trychip" onclick="tryAsk('Can someone call me about pricing?')">Can someone call me about pricing?</button>
+          <button class="trychip" onclick="tryAsk('Can someone call me about enterprise pricing? My email is alex@acme.com')">Ask it to book a callback</button>
+          <button class="trychip" onclick="tryAsk('What is the weather today?')">Try to make it hallucinate</button>
         </div>
       </div>
 
       <div class="cta-row">
         <a class="btn btn-primary" href="mailto:chetansierra@gmail.com?subject=AI%20agent%20project&body=Hi%20Chetan%2C%20here's%20what%20I'm%20trying%20to%20do%3A">Email me — let's talk →</a>
-        <a class="btn btn-ghost" href="#proof">See the proof ↓</a>
+        <a class="btn btn-ghost" href="#how">How it works ↓</a>
       </div>
 
-      <!-- proof at a glance -->
-      <div class="stats" id="proof-top">
+      <div class="stats">
         <div class="stat"><div class="n">92.7<span class="u">%</span></div><div class="l">answer accuracy (LLM-as-judge)</div></div>
         <div class="stat"><div class="n">100<span class="u">%</span></div><div class="l">retrieval hit-rate</div></div>
         <div class="stat"><div class="n"><span class="u">≈ $</span>0.01</div><div class="l">cost per question</div></div>
@@ -167,11 +175,57 @@
     </div>
   </section>
 
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">What the agent actually does</span>
+        <h2>Three jobs, done reliably.</h2>
+        <p>Not a generic chatbot bolted onto a prompt — a retrieval-grounded agent that only speaks
+          from your content, and acts when it should.</p>
+      </div>
+      <div class="how">
+        <div class="step">
+          <div class="num">1</div>
+          <h3>Reads your docs</h3>
+          <p>Your help center, FAQs and policies are ingested and indexed. The agent searches them on
+            every question — so it answers from <em>your</em> content, not the open internet.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h3>Answers — or refuses</h3>
+          <p>It replies with the exact sources it used, and when your docs don't cover something it
+            <strong>says so and offers a human</strong> instead of making something up.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h3>Takes the action</h3>
+          <p>When a visitor wants pricing or a call, it captures the lead or books the callback
+            straight into your CRM — turning a question into a conversation you can close.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT IT KNOWS -->
+  <section id="knows" class="kb">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">See it grounded in real data</span>
+        <h2>Right now it's reading <span class="count" id="kbcount">…</span> help-center articles.</h2>
+        <p>This is the whole point of RAG: the agent can only answer from documents it's been given.
+          Here's exactly what it knows — click any topic and it'll answer from that document.</p>
+      </div>
+      <div class="kbdocs" id="kbdocs"></div>
+      <p class="hint">Swap these for your own docs and the agent works the same way — that's the product.</p>
+    </div>
+  </section>
+
   <!-- SERVICES -->
   <section id="services">
     <div class="wrap">
       <div class="sec-head">
-        <span class="eyebrow">What I build</span>
+        <span class="eyebrow">What I can build for you</span>
         <h2>Pick the outcome you need.</h2>
         <p>Each one is a coded agent on your real data — deployed, with an eval report and a cost
           dashboard so you know exactly how it behaves.</p>
@@ -201,38 +255,7 @@
     </div>
   </section>
 
-  <!-- TEST IT -->
-  <section id="test" class="proof">
-    <div class="wrap">
-      <div class="sec-head">
-        <span class="eyebrow">Test me in 30 seconds</span>
-        <h2>Try to break the agent. That's the point.</h2>
-        <p>The assistant in the corner runs on a demo knowledge base (<em>Nimbus</em>, a fictional
-          SaaS). Here's how to see whether it actually works:</p>
-      </div>
-      <div class="steps">
-        <div class="step">
-          <div class="num">1</div>
-          <h3>Ask something it should know</h3>
-          <p>“How do I reset my password?” — you get a grounded answer with the sources it used.</p>
-        </div>
-        <div class="step">
-          <div class="num">2</div>
-          <h3>Ask something off-topic</h3>
-          <p>“What's the weather today?” — it <strong>refuses and offers a human</strong> instead of
-            making something up.</p>
-        </div>
-        <div class="step">
-          <div class="num">3</div>
-          <h3>Flip “How it works”</h3>
-          <p>See the retrieved chunks, scores, latency, tokens and the <strong>cost of each answer</strong> —
-            the same machinery I hand you in a dashboard.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- PROOF / CASE STUDY -->
+  <!-- PROOF -->
   <section id="proof">
     <div class="wrap">
       <div class="sec-head">
@@ -294,18 +317,36 @@
 
   <script>
     document.getElementById("yr").textContent = new Date().getFullYear();
-    // Hero chips drive the live widget (falls back to scrolling if it's not ready).
+
+    // Hero / KB chips drive the live widget (fall back to scrolling if not ready).
     function tryAsk(q){
       if (window.AnchorWidget && window.AnchorWidget.ask) window.AnchorWidget.ask(q);
-      else location.hash = "#test";
+      else location.hash = "#knows";
     }
+
+    // Show the documents the agent can actually answer from — RAG made tangible.
+    fetch("/kb").then(function(r){return r.json();}).then(function(d){
+      var c = document.getElementById("kbcount");
+      if (c) c.textContent = d.count || 0;
+      var wrap = document.getElementById("kbdocs");
+      if (!wrap) return;
+      (d.documents || []).forEach(function(doc){
+        var b = document.createElement("button");
+        b.className = "doc";
+        b.type = "button";
+        b.innerHTML = '<span class="ic">●</span>' + doc.title.replace(/[&<>]/g,"");
+        b.addEventListener("click", function(){ tryAsk("Tell me about " + doc.title); });
+        wrap.appendChild(b);
+      });
+    }).catch(function(){});
   </script>
 
-  <!-- The live agent: the same one-script-tag embed a client would add. -->
+  <!-- The live agent: the same one-script-tag embed a client would add.
+       Machinery starts ON here so visitors can see the retrieval + cost. -->
   <script src="/widget.js"
           data-business="Nimbus"
           data-color="#0f5f36"
           data-position="bottom-right"
-          data-machinery="off"></script>
+          data-machinery="on"></script>
 </body>
 </html>

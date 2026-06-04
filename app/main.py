@@ -26,6 +26,7 @@ from .models import (
     ConversationsResponse,
     HealthResponse,
     IngestResponse,
+    KbResponse,
     LeadsResponse,
     OverviewResponse,
     QueryRequest,
@@ -283,6 +284,16 @@ def widget_config() -> dict:
     """Lets the widget self-configure: business name + suggested prompt chips."""
     s = get_settings()
     return {"business": s.business_name, "suggested": SUGGESTED_PROMPTS}
+
+
+@app.get("/kb", response_model=KbResponse)
+def kb() -> KbResponse:
+    """The documents the agent can answer from — makes 'answers from your data'
+    tangible (the portfolio lists these so visitors know what to ask)."""
+    settings = get_settings()
+    retriever = _state["retriever"]
+    docs = retriever.store.documents() if retriever is not None else []
+    return KbResponse(business=settings.business_name, count=len(docs), documents=docs)
 
 
 @app.get("/demo", response_class=HTMLResponse, include_in_schema=False)

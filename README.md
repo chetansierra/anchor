@@ -65,6 +65,7 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
 | `GET /health` | status, loaded index, active provider/model |
 | `POST /ingest` | (re)build the KB index from `data/kb/` |
 | `POST /query` | raw retrieval — top-k chunks for a query |
+| `GET /kb` | the documents the agent can answer from (titles + chunk counts) |
 | `POST /chat` | the agent — grounded answer + citations + actions |
 | `GET /leads` | recent leads / callbacks captured by the agent |
 | `GET /admin` | observability dashboard (cost, latency, conversation traces) |
