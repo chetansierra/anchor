@@ -7,6 +7,9 @@ fictional B2B SaaS team-workflow tool (non-fintech, swap freely).
 
 Built incrementally, one focused milestone at a time.
 
+> 📐 [ARCHITECTURE.md](ARCHITECTURE.md) — folder map, tech stack, request flows.
+> 📓 [learnings/learnings.md](learnings/learnings.md) — append-only build journal: concepts, mistakes, decisions.
+
 ## Day 1 — RAG ingestion + retrieval (done)
 
 A working ingestion pipeline (`load → chunk → embed → upsert`) over a seeded KB,
