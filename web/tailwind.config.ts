@@ -26,18 +26,19 @@ const config: Config = {
         lift: "0 6px 18px rgba(15,95,54,.10)",
       },
       keyframes: {
+        // subtle: a short, small lift — no bounce, no big travel
         "fade-up": {
-          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "0%": { opacity: "0", transform: "translateY(5px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         pulse_dot: {
           "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.3" },
+          "50%": { opacity: "0.45" },
         },
       },
       animation: {
-        "fade-up": "fade-up .35s ease both",
-        "pulse-dot": "pulse_dot 1.2s ease-in-out infinite",
+        "fade-up": "fade-up .3s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "pulse-dot": "pulse_dot 1.8s ease-in-out infinite",
       },
     },
   },

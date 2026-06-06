@@ -29,11 +29,6 @@ export const sampleResult: ConsultResult = {
     { name: "Discovery", duration: "1-2 days", deliverable: "Scope" },
     { name: "Build", duration: "2-4 days", deliverable: "Agent + actions" },
   ],
-  proof: {
-    headline: "92.7% answer accuracy on 41 labeled cases",
-    detail: "100% retrieval hit-rate, 8/8 refusals.",
-    case_study_url: "/#proof",
-  },
   grounded: true,
   citations: [
     { n: 1, doc_id: "service-rag", title: "Support agent", source: "x.md", score: 0.8 },

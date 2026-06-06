@@ -14,17 +14,33 @@
  */
 (function () {
   "use strict";
+  // Config comes from the <script> tag's data-* attributes when loaded the normal
+  // way. When injected dynamically (e.g. a React app), document.currentScript is
+  // null, so fall back to a window.AnchorWidgetConfig object with the same keys.
   var me = document.currentScript;
-  if (!me) return;
+  var opts = window.AnchorWidgetConfig || {};
+  if (!me && !window.AnchorWidgetConfig) return;
+  if (window.__anchorWidgetMounted) return; // guard against double-mount
+  window.__anchorWidgetMounted = true;
+
+  function conf(attr, key, dflt) {
+    var v = me ? me.getAttribute("data-" + attr) : opts[key];
+    return v === null || v === undefined ? dflt : v;
+  }
+  function truthy(v) {
+    return v === true || String(v).toLowerCase() === "on" || String(v).toLowerCase() === "true";
+  }
+  var defaultApi = me ? new URL(me.src).origin : window.location.origin;
 
   var cfg = {
-    api: (me.getAttribute("data-api") || new URL(me.src).origin).replace(/\/+$/, ""),
-    business: me.getAttribute("data-business") || "",
-    color: me.getAttribute("data-color") || "#0f5f36",
-    position: me.getAttribute("data-position") || "bottom-right",
-    greeting: me.getAttribute("data-greeting") || "",
-    machinery: (me.getAttribute("data-machinery") || "off").toLowerCase() === "on",
-    topK: parseInt(me.getAttribute("data-top-k") || "3", 10),
+    api: String(conf("api", "api", defaultApi)).replace(/\/+$/, ""),
+    business: conf("business", "business", ""),
+    color: conf("color", "color", "#0f5f36"),
+    position: conf("position", "position", "bottom-right"),
+    greeting: conf("greeting", "greeting", ""),
+    machinery: truthy(conf("machinery", "machinery", "off")),
+    topK: parseInt(conf("top-k", "topK", "3"), 10) || 3,
+    attention: truthy(conf("attention", "attention", "off")),
   };
 
   var host = document.createElement("div");
@@ -68,6 +84,15 @@
 
   el(".launcher").addEventListener("click", toggle);
   el(".close").addEventListener("click", close);
+
+  // One-time attention pulse to draw the eye, then it rests. Stops on first click.
+  if (cfg.attention) {
+    var launcher = el(".launcher");
+    var stopAttn = function () { launcher.classList.remove("attn"); };
+    launcher.classList.add("attn");
+    launcher.addEventListener("click", stopAttn, { once: true });
+    setTimeout(stopAttn, 7200);
+  }
   mechBtn.addEventListener("click", function () {
     var on = !anchorEl.classList.contains("show-machinery");
     anchorEl.classList.toggle("show-machinery", on);
@@ -291,6 +316,12 @@ function styles(color, side) {
     "  cursor:pointer;background:" + color + ";color:#fff;display:flex;align-items:center;justify-content:center;",
     "  box-shadow:0 8px 24px rgba(0,0,0,.20);transition:transform .15s}",
     ".launcher:hover{transform:scale(1.06)}",
+    /* one-time attention pulse: a soft halo, three gentle rings, then rest */
+    ".launcher.attn{animation:anchorAttn 2.2s ease-out 3}",
+    "@keyframes anchorAttn{0%{box-shadow:0 8px 24px rgba(0,0,0,.2),0 0 0 0 rgba(34,197,94,.5)}",
+    "  70%{box-shadow:0 8px 24px rgba(0,0,0,.2),0 0 0 16px rgba(34,197,94,0)}",
+    "  100%{box-shadow:0 8px 24px rgba(0,0,0,.2),0 0 0 0 rgba(34,197,94,0)}}",
+    "@media (prefers-reduced-motion: reduce){.launcher.attn{animation:none}}",
     ".launcher .ic{position:absolute;display:flex;transition:opacity .18s,transform .18s}",
     ".ic-close{opacity:0;transform:rotate(-90deg) scale(.6)}",
     ".anchor.open .ic-chat{opacity:0;transform:rotate(90deg) scale(.6)}",

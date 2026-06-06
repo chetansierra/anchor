@@ -72,10 +72,12 @@ def test_scripted_consult_returns_structured_result(tmp_path):
 
     assert isinstance(res, ConsultResult)
     assert res.services[0].service_id == "rag_support_agent"
+    # price band + what's-included are script-filled from the catalog, not the model
     assert res.services[0].price_band.low_usd == 300
+    assert res.services[0].whats_included
     assert res.solution.summary
-    assert len(res.timeline) >= 1
-    assert res.proof.headline
+    assert res.solution.stack_notes  # script-filled
+    assert len(res.timeline) >= 1  # script-filled
     # observability is attached by the agent, not the model
     assert res.usage.input_tokens == 200
     assert res.provider == "fake"
@@ -199,7 +201,8 @@ def test_consult_stream_endpoint_emits_stages_then_result_then_done():
     data = results[0]["data"]
     assert data["problem_restatement"]
     assert data["services"] and data["services"][0]["service_id"] in CATALOG_BY_ID
-    assert data["timeline"] and data["proof"]["headline"]
+    assert data["services"][0]["price_band"]["low_usd"] >= 0  # script-filled fact
+    assert data["timeline"]
 
 
 def test_consult_lead_endpoint_writes_to_crm():

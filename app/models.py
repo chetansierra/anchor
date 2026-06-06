@@ -149,19 +149,13 @@ class SolutionSketch(BaseModel):
     stack_notes: list[str] = []
 
 
-class Proof(BaseModel):
-    headline: str
-    detail: str = ""
-    case_study_url: str = "/#proof"
-
-
 class ConsultResult(BaseModel):
-    # --- LLM-authored (via the emit_consult tool) ---------------------------
+    # --- LLM-authored (via the emit_consult tool): tailored prose only -------
     problem_restatement: str
     services: list[ServiceMatch] = Field(min_length=1, max_length=3)
     solution: SolutionSketch
+    # --- script-filled from the catalog (deterministic, not model tokens) ---
     timeline: list[TimelinePhase] = []
-    proof: Proof
     # --- observability (filled by the agent, never asked of the model) ------
     grounded: bool = True
     citations: list[Citation] = []

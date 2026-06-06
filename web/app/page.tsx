@@ -6,6 +6,7 @@ import type { ConsultResult, Stage, StageFrame } from "@/lib/types";
 import { HeroPrompt } from "@/components/HeroPrompt";
 import { ThinkingStepper } from "@/components/ThinkingStepper";
 import { ConsultResultView } from "@/components/ConsultResultView";
+import { RagWidget } from "@/components/RagWidget";
 
 type Phase = "idle" | "streaming" | "done" | "error";
 
@@ -95,6 +96,10 @@ export default function Home() {
 
         {result && <ConsultResultView result={result} problem={problem} />}
       </section>
+
+      {/* The RAG support agent (Nimbus) as a floating launcher, with a one-time
+          attention pulse — a live, deployed example of the same engine. */}
+      <RagWidget />
     </main>
   );
 }

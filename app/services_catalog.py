@@ -147,11 +147,37 @@ def _restate(problem: str) -> str:
     return f"Here's my read on what you need: {p}."
 
 
-def default_consult_payload(problem: str, service_ids: list[str] | None = None) -> dict:
-    """A complete, schema-valid consult payload (the LLM-authored subset).
+# --- Deterministic, script-filled parts of a proposal -------------------------
+# These are facts/templates, not model judgment, so a script fills them every
+# time instead of spending tokens asking the model (and risking drift). The model
+# only authors the *tailored* prose (restatement, fit_reason, solution summary +
+# steps); enrich_payload() merges these in afterward.
 
-    Used (1) by FakeProvider as the offline/keyless proposal and (2) by the agent
-    as a safe fallback when a real model returns something that won't validate.
+def default_stack_notes() -> list[str]:
+    return [
+        "Provider-agnostic LLM (Claude / OpenAI / Gemini)",
+        "RAG retrieval over your data",
+        "Tool-calling + webhooks into your systems",
+        "Eval harness + cost/latency observability",
+    ]
+
+
+def default_timeline() -> list[dict]:
+    return [
+        {"name": "Discovery & scoping", "duration": "1-2 days", "deliverable": "Fixed scope, success criteria, data sources"},
+        {"name": "Ingestion & retrieval", "duration": "1-3 days", "deliverable": "Your data indexed; retrieval returns the right sources"},
+        {"name": "Agent & actions", "duration": "2-4 days", "deliverable": "Grounded answers with citations + real tool actions"},
+        {"name": "Evaluation & deploy", "duration": "1-2 days", "deliverable": "Accuracy checked, then traced, cost-capped, and deployed"},
+    ]
+
+
+def default_consult_payload(problem: str, service_ids: list[str] | None = None) -> dict:
+    """The **LLM-authored subset** of a proposal (tailored prose only).
+
+    Deterministic facts — service name / price / what's-included, the timeline,
+    stack notes — are NOT here; enrich_payload() fills them from the catalog. Used
+    (1) by FakeProvider as the keyless/offline proposal and (2) by the agent as a
+    safe fallback when a real model returns something that won't validate.
     """
     ids = service_ids or pick_services(problem)
     services = []
@@ -160,13 +186,10 @@ def default_consult_payload(problem: str, service_ids: list[str] | None = None) 
         services.append(
             {
                 "service_id": c["id"],
-                "name": c["name"],
                 "fit_reason": (
                     f"From what you described, {c['name']} is the most direct fit — "
                     "it's a productized scope I can deliver and evaluate."
                 ),
-                "whats_included": list(c["whats_included"]),
-                "price_band": dict(c["price_band"]),
                 "confidence": 0.7,
             }
         )
@@ -177,36 +200,55 @@ def default_consult_payload(problem: str, service_ids: list[str] | None = None) 
         "solution": {
             "summary": (
                 "I'd build this as a grounded agent over your own data, with the "
-                "production pieces — guardrails, an evaluation harness, and cost "
-                "observability — wired in from the start so it holds up in production."
+                "production pieces — guardrails, evaluation, and cost observability "
+                "— wired in from the start so it holds up in production."
             ),
             "architecture_steps": [
                 "Ingest your content/data into a retrieval index",
                 "A grounded agent answers (and acts) using only your sources, with citations",
                 "Anti-hallucination guardrails refuse when the data doesn't cover it",
-                "An evaluation harness measures accuracy before launch",
                 "Per-run cost/latency tracing plus a hard daily cost ceiling",
             ],
-            "stack_notes": [
-                "Provider-agnostic LLM (Claude / OpenAI / Gemini)",
-                "RAG retrieval over your data",
-                "Tool-calling into your systems",
-            ],
-        },
-        "timeline": [
-            {"name": "Discovery & scoping", "duration": "1-2 days", "deliverable": "Fixed scope, success criteria, data sources"},
-            {"name": "Ingestion & retrieval", "duration": "1-3 days", "deliverable": "Your data indexed; retrieval returns the right sources"},
-            {"name": "Agent & actions", "duration": "2-4 days", "deliverable": "Grounded answers with citations + real tool actions"},
-            {"name": "Evaluation", "duration": "1-2 days", "deliverable": "Accuracy report with a number and concrete fixes"},
-            {"name": "Observability & deploy", "duration": "1-2 days", "deliverable": "Tracing, cost ceiling, and a deployed agent"},
-        ],
-        "proof": {
-            "headline": "92.7% answer accuracy on 41 labeled cases",
-            "detail": (
-                "The Nimbus support agent on this site: 100% retrieval hit-rate, "
-                "8/8 correct refusals on out-of-scope questions, a fraction of a cent "
-                "per run — and every run is traced."
-            ),
-            "case_study_url": "/#proof",
         },
     }
+
+
+def enrich_payload(args: dict, problem: str) -> dict:
+    """Merge the model's (or fallback's) tailored prose with catalog facts.
+
+    - Drops services with an unknown service_id; back-fills name / what's-included
+      / price band from the catalog (facts win over anything the model emitted).
+    - Adds the script-filled timeline and stack notes.
+    Returns a dict ready to validate as a ConsultResult. If no service survives,
+    leaves `services` empty so validation trips the caller's fallback.
+    """
+    out = dict(args) if isinstance(args, dict) else {}
+    out.setdefault("problem_restatement", _restate(problem))
+
+    services = []
+    for s in (out.get("services") or [])[:3]:
+        if not isinstance(s, dict):
+            continue
+        cat = CATALOG_BY_ID.get(str(s.get("service_id") or ""))
+        if cat is None:
+            continue
+        services.append(
+            {
+                "service_id": cat["id"],
+                "name": cat["name"],
+                "fit_reason": s.get("fit_reason") or f"{cat['name']} fits what you described.",
+                "whats_included": list(cat["whats_included"]),
+                "price_band": dict(cat["price_band"]),
+                "confidence": s.get("confidence", 0.7),
+            }
+        )
+    out["services"] = services
+
+    solution = dict(out.get("solution") or {})
+    solution.setdefault("summary", "")
+    solution.setdefault("architecture_steps", [])
+    solution["stack_notes"] = default_stack_notes()
+    out["solution"] = solution
+
+    out["timeline"] = default_timeline()
+    return out

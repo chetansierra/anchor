@@ -28,12 +28,6 @@ export interface SolutionSketch {
   stack_notes: string[];
 }
 
-export interface Proof {
-  headline: string;
-  detail: string;
-  case_study_url: string;
-}
-
 export interface Citation {
   n: number;
   doc_id: string;
@@ -47,7 +41,6 @@ export interface ConsultResult {
   services: ServiceMatch[];
   solution: SolutionSketch;
   timeline: TimelinePhase[];
-  proof: Proof;
   grounded: boolean;
   citations: Citation[];
   cost_usd: number;

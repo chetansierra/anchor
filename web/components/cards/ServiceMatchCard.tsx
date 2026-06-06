@@ -14,12 +14,13 @@ export function ServiceMatchCard({ service }: { service: ServiceMatch }) {
           {priceLabel(service.price_band.low_usd, service.price_band.high_usd)}
         </span>
       </div>
-      <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{service.fit_reason}</p>
+      <p className="mt-2 text-[14px] leading-relaxed text-muted">{service.fit_reason}</p>
       {service.whats_included.length > 0 && (
         <ul className="mt-3 space-y-1.5">
-          {service.whats_included.map((item, i) => (
-            <li key={i} className="flex gap-2 text-[14px] text-ink">
-              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-brand-soft" />
+          {/* keep it scannable — top few inclusions only */}
+          {service.whats_included.slice(0, 3).map((item, i) => (
+            <li key={i} className="flex gap-2 text-[13.5px] text-ink/90">
+              <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-brand-soft" />
               {item}
             </li>
           ))}

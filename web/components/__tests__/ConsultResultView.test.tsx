@@ -20,10 +20,12 @@ describe("ConsultResultView", () => {
     expect(screen.getByText("Rough timeline")).toBeInTheDocument();
     expect(screen.getByText("Discovery")).toBeInTheDocument();
 
-    // 4. proof + lead capture CTA
-    expect(
-      screen.getByText("92.7% answer accuracy on 41 labeled cases"),
-    ).toBeInTheDocument();
+    // 4. lead capture CTA (no eval/proof numbers on the page)
     expect(screen.getByText("Book a call")).toBeInTheDocument();
+  });
+
+  it("does not show eval/accuracy numbers on the page", () => {
+    render(<ConsultResultView result={sampleResult} problem="docs chatbot" />);
+    expect(screen.queryByText(/92\.7%|accuracy|labeled cases/i)).toBeNull();
   });
 });

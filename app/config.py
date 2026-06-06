@@ -107,8 +107,15 @@ class Settings(BaseSettings):
     # own dir/index so the Nimbus support corpus (and its tests) stay untouched.
     services_kb_dir: str = "data/services_kb"
     services_index_dir: str = "data/services_index"
-    consult_top_k: int = 5
-    consult_max_tokens: int = 2048  # the structured card payload is larger than a chat answer
+    # Token discipline: the services corpus is small, so a few well-matched chunks
+    # are plenty; a tighter per-source budget than /chat keeps the (uncached,
+    # per-call) input small without starving the fit_reason / solution.
+    consult_top_k: int = 4
+    consult_source_char_budget: int = 1200
+    # Output cap. The model only authors tailored prose now (restatement,
+    # fit_reasons, solution summary + steps) — facts are script-filled — so this
+    # can be modest.
+    consult_max_tokens: int = 1024
     freelancer_name: str = "Chetan"
 
     def path(self, value: str) -> Path:

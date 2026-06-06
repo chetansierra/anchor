@@ -2,7 +2,6 @@ import type { ConsultResult } from "@/lib/types";
 import { ServiceMatchCard } from "@/components/cards/ServiceMatchCard";
 import { SolutionSketchCard } from "@/components/cards/SolutionSketchCard";
 import { TimelineCard } from "@/components/cards/TimelineCard";
-import { ProofCard } from "@/components/cards/ProofCard";
 import { LeadCaptureForm } from "@/components/LeadCaptureForm";
 import { NimbusLink } from "@/components/NimbusLink";
 
@@ -41,8 +40,6 @@ export function ConsultResultView({
         <SolutionSketchCard solution={result.solution} />
         <TimelineCard phases={result.timeline} />
       </div>
-
-      <ProofCard proof={result.proof} />
 
       <LeadCaptureForm
         problem={problem}

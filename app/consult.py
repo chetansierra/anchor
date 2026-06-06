@@ -29,10 +29,10 @@ from .llm.pricing import estimate_cost_usd
 from .models import ConsultResult
 from .retrieval import Retriever
 from .services_catalog import (
-    CATALOG_BY_ID,
     SERVICE_CATALOG,
     catalog_ids,
     default_consult_payload,
+    enrich_payload,
 )
 from .vectorstore import SearchHit
 
@@ -43,19 +43,17 @@ _CATALOG_LINES = "\n".join(
 
 CONSULT_SYSTEM_PROMPT = """You are the AI solutions consultant for {name}, a backend engineer who builds production-grade, evaluated AI agents on clients' real data.
 
-A visitor has described an AI problem in their business. Scope it into a concrete, honest mini-proposal by calling the SINGLE tool `emit_consult` exactly once. Ground everything in the SOURCES (which describe {name}'s actual services, approach, and proven results) provided in the user's message — do not invent services, prices, or results the sources don't support.
+A visitor has described an AI problem. Scope it by calling the SINGLE tool `emit_consult` exactly once. Ground everything in the SOURCES (which describe {name}'s actual services and approach) in the user's message — don't invent capabilities the sources don't support.
 
-Pick the 1-3 services from this catalog that genuinely fit (use these exact service_id values; never invent one):
+Choose the 1-3 services that genuinely fit, using these exact service_id values (never invent one):
 {catalog}
 
-Guidance:
-- problem_restatement: restate their problem in one or two plain sentences so they feel understood.
-- services: 1-3 matches. For each, give a fit_reason tied to THEIR problem and grounded in the sources, and use the catalog's price band.
-- solution: a short, tailored sketch — a summary plus ordered architecture_steps describing how you'd build it (RAG, tool-calling, guardrails, eval, observability as relevant).
-- timeline: a few phases with rough durations, drawn from the approach the sources describe.
-- proof: cite the measured Nimbus case study (e.g. 92.7% accuracy) as evidence this engine works.
+In the tool call provide only:
+- problem_restatement: one or two plain sentences showing you understood them.
+- services: 1-3 matches, each with its service_id and a fit_reason tied to THEIR problem and grounded in the sources. (Pricing and what's-included are filled in automatically — don't restate them.)
+- solution: a short tailored sketch — a summary plus ordered architecture_steps for how you'd build it (RAG, tool-calling, guardrails, eval, observability as relevant).
 
-Be concrete and confident but never over-promise; it's fine to note what should stay human-in-the-loop. Call `emit_consult` now — do not reply with prose."""
+Be concrete and honest; it's fine to note what should stay human-in-the-loop. Call `emit_consult` now — no prose reply."""
 
 
 def _emit_consult_tool() -> ToolSpec:
@@ -77,7 +75,7 @@ def _emit_consult_tool() -> ToolSpec:
                     "type": "array",
                     "minItems": 1,
                     "maxItems": 3,
-                    "description": "The 1-3 catalog services that fit, best first.",
+                    "description": "The 1-3 catalog services that fit, best first. Pricing and what's-included are filled in automatically — provide only service_id + fit_reason.",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -86,20 +84,9 @@ def _emit_consult_tool() -> ToolSpec:
                                 "enum": catalog_ids(),
                                 "description": "Which productized service fits (use an exact catalog id).",
                             },
-                            "name": {"type": "string"},
                             "fit_reason": {
                                 "type": "string",
                                 "description": "Why this service fits THEIR problem, grounded in the sources.",
-                            },
-                            "whats_included": {"type": "array", "items": {"type": "string"}},
-                            "price_band": {
-                                "type": "object",
-                                "properties": {
-                                    "label": {"type": "string"},
-                                    "low_usd": {"type": "integer"},
-                                    "high_usd": {"type": "integer"},
-                                },
-                                "required": ["low_usd", "high_usd"],
                             },
                             "confidence": {
                                 "type": "number",
@@ -114,33 +101,11 @@ def _emit_consult_tool() -> ToolSpec:
                     "properties": {
                         "summary": {"type": "string"},
                         "architecture_steps": {"type": "array", "items": {"type": "string"}},
-                        "stack_notes": {"type": "array", "items": {"type": "string"}},
                     },
                     "required": ["summary"],
                 },
-                "timeline": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "duration": {"type": "string"},
-                            "deliverable": {"type": "string"},
-                        },
-                        "required": ["name", "duration"],
-                    },
-                },
-                "proof": {
-                    "type": "object",
-                    "properties": {
-                        "headline": {"type": "string"},
-                        "detail": {"type": "string"},
-                        "case_study_url": {"type": "string"},
-                    },
-                    "required": ["headline"],
-                },
             },
-            "required": ["problem_restatement", "services", "solution", "proof"],
+            "required": ["problem_restatement", "services", "solution"],
         },
     )
 
@@ -239,7 +204,7 @@ class ConsultAgent:
             LLMMessage(
                 role="user",
                 content=(
-                    f"{_format_sources(hits, self.settings.source_char_budget)}"
+                    f"{_format_sources(hits, self.settings.consult_source_char_budget)}"
                     f"\n\nVisitor's problem: {problem}"
                 ),
             )
@@ -264,43 +229,14 @@ class ConsultAgent:
             "model": self.provider.model,
         }
 
+        # The model authors only tailored prose; enrich_payload merges in the
+        # deterministic catalog facts + timeline + stack notes (script, not tokens).
         args = resp.tool_calls[0].arguments if resp.tool_calls else {}
-        args = _sanitize(args)
+        enriched = enrich_payload(args, problem)
         try:
-            return ConsultResult.model_validate({**args, **observability})
+            return ConsultResult.model_validate({**enriched, **observability})
         except ValidationError:
-            # A real model returned something that won't validate — never break the
-            # demo; serve a safe, catalog-derived proposal instead.
-            payload = default_consult_payload(problem)
-            return ConsultResult.model_validate({**payload, **observability})
-
-
-def _sanitize(args: object) -> dict:
-    """Coerce a model's emit_consult arguments toward a valid ConsultResult.
-
-    Drops services whose service_id isn't in the catalog and back-fills name /
-    whats_included / price_band from the catalog when the model omitted them. If
-    nothing valid survives, leaves args as-is so validation trips the fallback.
-    """
-    if not isinstance(args, dict):
-        return {}
-    args = dict(args)
-    services = args.get("services")
-    if isinstance(services, list):
-        cleaned = []
-        for s in services[:3]:
-            if not isinstance(s, dict):
-                continue
-            cat = CATALOG_BY_ID.get(s.get("service_id"))
-            if cat is None:
-                continue
-            s = dict(s)
-            s.setdefault("name", cat["name"])
-            if not s.get("whats_included"):
-                s["whats_included"] = list(cat["whats_included"])
-            if not s.get("price_band"):
-                s["price_band"] = dict(cat["price_band"])
-            cleaned.append(s)
-        if cleaned:
-            args["services"] = cleaned
-    return args
+            # A real model returned something that won't validate (e.g. no valid
+            # service) — never break the demo; serve a safe catalog-derived proposal.
+            enriched = enrich_payload(default_consult_payload(problem), problem)
+            return ConsultResult.model_validate({**enriched, **observability})
