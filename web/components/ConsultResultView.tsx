@@ -13,7 +13,7 @@ export function ConsultResultView({
   problem: string;
 }) {
   return (
-    <div className="space-y-5 animate-fade-up">
+    <div className="space-y-8 animate-fade-up">
       <div>
         <p className="text-[15px] leading-relaxed text-ink">{result.problem_restatement}</p>
         {result.grounded && (
@@ -25,21 +25,22 @@ export function ConsultResultView({
         )}
       </div>
 
+      {/* Stacked, full-width blocks — no ragged side-by-side. The services group
+          gets a label; the solution + timeline cards carry their own titles. */}
       <section>
         <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted">
           Services that fit
         </h3>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-3">
           {result.services.map((s) => (
             <ServiceMatchCard key={s.service_id} service={s} />
           ))}
         </div>
       </section>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <SolutionSketchCard solution={result.solution} />
-        <TimelineCard phases={result.timeline} />
-      </div>
+      <SolutionSketchCard solution={result.solution} />
+
+      <TimelineCard phases={result.timeline} />
 
       <LeadCaptureForm
         problem={problem}

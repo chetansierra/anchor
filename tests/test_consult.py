@@ -76,7 +76,7 @@ def test_scripted_consult_returns_structured_result(tmp_path):
     assert res.services[0].price_band.low_usd == 300
     assert res.services[0].whats_included
     assert res.solution.summary
-    assert res.solution.stack_notes  # script-filled
+    assert res.solution.outcomes  # crisp end-product bullets
     assert len(res.timeline) >= 1  # script-filled
     # observability is attached by the agent, not the model
     assert res.usage.input_tokens == 200

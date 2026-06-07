@@ -51,7 +51,7 @@ Choose the 1-3 services that genuinely fit, using these exact service_id values 
 In the tool call provide only:
 - problem_restatement: one or two plain sentences showing you understood them.
 - services: 1-3 matches, each with its service_id and a fit_reason tied to THEIR problem and grounded in the sources. (Pricing and what's-included are filled in automatically — don't restate them.)
-- solution: a short tailored sketch — a summary plus ordered architecture_steps for how you'd build it (RAG, tool-calling, guardrails, eval, observability as relevant).
+- solution: a one-line summary, plus `outcomes` — 3-5 crisp bullet fragments (NOT full sentences) describing what the client GETS: the end product for their business and customers. Describe the result, not the technology, stack, or infrastructure.
 
 Be concrete and honest; it's fine to note what should stay human-in-the-loop. Call `emit_consult` now — no prose reply."""
 
@@ -99,8 +99,12 @@ def _emit_consult_tool() -> ToolSpec:
                 "solution": {
                     "type": "object",
                     "properties": {
-                        "summary": {"type": "string"},
-                        "architecture_steps": {"type": "array", "items": {"type": "string"}},
+                        "summary": {"type": "string", "description": "One short line framing the solution."},
+                        "outcomes": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "3-5 crisp bullet fragments (not full sentences) describing what the client gets — the end product/result, not the tech or infrastructure.",
+                        },
                     },
                     "required": ["summary"],
                 },

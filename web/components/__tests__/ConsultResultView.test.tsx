@@ -7,14 +7,13 @@ describe("ConsultResultView", () => {
   it("renders all four artifact types from a ConsultResult", () => {
     render(<ConsultResultView result={sampleResult} problem="docs chatbot" />);
 
-    // 1. matched service cards
+    // 1. matched service cards (no price shown)
     expect(screen.getByText("Website AI support agent")).toBeInTheDocument();
     expect(screen.getByText("AI lead-capture & booking agent")).toBeInTheDocument();
-    expect(screen.getByText("$300–$800")).toBeInTheDocument();
 
-    // 2. solution sketch
-    expect(screen.getByText("How I'd build it")).toBeInTheDocument();
-    expect(screen.getByText("Capture lead")).toBeInTheDocument();
+    // 2. solution as outcome bullets ("What you'll get")
+    expect(screen.getByText("What you'll get")).toBeInTheDocument();
+    expect(screen.getByText("Instant answers from your docs")).toBeInTheDocument();
 
     // 3. timeline
     expect(screen.getByText("Rough timeline")).toBeInTheDocument();
@@ -24,8 +23,9 @@ describe("ConsultResultView", () => {
     expect(screen.getByText("Book a call")).toBeInTheDocument();
   });
 
-  it("does not show eval/accuracy numbers on the page", () => {
+  it("does not show eval numbers or prices on the page", () => {
     render(<ConsultResultView result={sampleResult} problem="docs chatbot" />);
     expect(screen.queryByText(/92\.7%|accuracy|labeled cases/i)).toBeNull();
+    expect(screen.queryByText(/\$\d/)).toBeNull(); // price hidden for now
   });
 });

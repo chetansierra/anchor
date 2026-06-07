@@ -24,8 +24,7 @@ export interface TimelinePhase {
 
 export interface SolutionSketch {
   summary: string;
-  architecture_steps: string[];
-  stack_notes: string[];
+  outcomes: string[];
 }
 
 export interface Citation {

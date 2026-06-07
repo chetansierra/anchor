@@ -21,9 +21,8 @@ export const sampleResult: ConsultResult = {
     },
   ],
   solution: {
-    summary: "A grounded agent over your data with eval and observability.",
-    architecture_steps: ["Ingest", "Answer with citations", "Capture lead"],
-    stack_notes: ["RAG", "Tool-calling"],
+    summary: "An AI that answers your customers and captures the lead.",
+    outcomes: ["Instant answers from your docs", "Every lead captured to your CRM"],
   },
   timeline: [
     { name: "Discovery", duration: "1-2 days", deliverable: "Scope" },

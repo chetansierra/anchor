@@ -58,7 +58,7 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       <section className="hero-wash">
-        <div className="mx-auto max-w-3xl px-5 pt-16 pb-8 sm:pt-24">
+        <div className="mx-auto max-w-[920px] px-5 pt-16 pb-8 sm:pt-24">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3 py-1 text-xs font-medium text-brand-ink">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-brand-soft" />
             Production-grade AI agents — evaluated &amp; observable
@@ -78,7 +78,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-5 pb-24">
+      <section className="mx-auto max-w-[920px] px-5 pb-24">
         {(busy || stages.length > 0) && (
           <div className="mb-5">
             <ThinkingStepper stages={stages} />

@@ -145,8 +145,8 @@ class TimelinePhase(BaseModel):
 
 class SolutionSketch(BaseModel):
     summary: str
-    architecture_steps: list[str] = []
-    stack_notes: list[str] = []
+    # crisp end-product bullets — what the client GETS, not the infrastructure
+    outcomes: list[str] = []
 
 
 class ConsultResult(BaseModel):

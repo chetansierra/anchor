@@ -19,10 +19,10 @@ SERVICE_CATALOG: list[dict] = [
         "name": "Website AI support agent",
         "price_band": {"label": "Fixed scope", "low_usd": 300, "high_usd": 800},
         "whats_included": [
-            "Ingest your docs/site into a retrieval index",
-            "Grounded RAG answers with citations",
-            "Anti-hallucination guardrails (refuse when unsure)",
-            "Embeddable one-script-tag widget",
+            "Instant answers from your own docs",
+            "Every answer shows its source",
+            "Says when it doesn't know — no made-up answers",
+            "Live on your site, on brand",
         ],
         "keywords": [
             "doc", "docs", "faq", "help center", "help centre", "knowledge base",
@@ -35,10 +35,10 @@ SERVICE_CATALOG: list[dict] = [
         "name": "AI lead-capture & booking agent",
         "price_band": {"label": "Fixed scope", "low_usd": 400, "high_usd": 1000},
         "whats_included": [
-            "Grounded support agent over your docs",
-            "Tool-calling webhooks into your CRM/sheet",
-            "Capture leads and book callbacks automatically",
-            "Visible 'lead captured' confirmation",
+            "Answers customers and captures the lead in one chat",
+            "Interested visitors land in your CRM automatically",
+            "Books callbacks without a human",
+            "Every captured lead visible to you",
         ],
         "keywords": [
             "lead", "leads", "booking", "book a call", "capture", "sales",
@@ -51,10 +51,10 @@ SERVICE_CATALOG: list[dict] = [
         "name": "\"Automate this workflow\" with AI",
         "price_band": {"label": "Fixed scope", "low_usd": 200, "high_usd": 600},
         "whats_included": [
-            "One scoped workflow with clear inputs/outputs",
-            "AI wired to your tools with retries + error handling",
-            "Human-in-the-loop checkpoint where needed",
-            "Logging of every action and its cost",
+            "A repetitive task runs itself",
+            "Handles the messy cases rules can't",
+            "You approve anything risky before it acts",
+            "A clear log of what it did",
         ],
         "keywords": [
             "automate", "automation", "workflow", "n8n", "zapier", "make.com",
@@ -67,10 +67,10 @@ SERVICE_CATALOG: list[dict] = [
         "name": "Agentic function (sales / email assistant)",
         "price_band": {"label": "Scoped to the role", "low_usd": 500, "high_usd": 1200},
         "whats_included": [
-            "Multi-step agent loop with planning + multiple tools",
-            "Integrations with the systems the role touches",
-            "Iteration caps and human approval on costly actions",
-            "Evaluation on representative scenarios",
+            "An AI that handles a whole role, not one task",
+            "Works across the tools you already use",
+            "Checks with you before anything costly",
+            "Proven on real scenarios before it goes live",
         ],
         "keywords": [
             "agent", "agentic", "sales agent", "sales manager", "email manager",
@@ -83,10 +83,10 @@ SERVICE_CATALOG: list[dict] = [
         "name": "AI internal-tooling integration",
         "price_band": {"label": "Fixed scope", "low_usd": 400, "high_usd": 1000},
         "whats_included": [
-            "Private, access-controlled index over internal data",
-            "Grounded internal assistant with citations",
-            "Optional tool-calling into internal APIs",
-            "Observability + a cost ceiling",
+            "Your team gets answers in plain English",
+            "Pulls from internal docs, with sources",
+            "Stays private, behind your login",
+            "Predictable, capped running cost",
         ],
         "keywords": [
             "internal", "internal tool", "internal tooling", "dashboard",
@@ -99,10 +99,10 @@ SERVICE_CATALOG: list[dict] = [
         "name": "Agent reliability audit",
         "price_band": {"label": "From", "low_usd": 500, "high_usd": 1500},
         "whats_included": [
-            "Labeled test set over your domain",
-            "Scoring: retrieval, answer correctness, tool-calls",
-            "Report with accuracy % + prioritized fixes",
-            "Optional: implement top fixes and re-run",
+            "Know how accurate your bot really is",
+            "See exactly where it fails",
+            "A prioritized list of fixes",
+            "Optional: I fix the top issues and re-test",
         ],
         "keywords": [
             "audit", "eval", "evaluate", "evaluation", "hallucinate",
@@ -153,15 +153,6 @@ def _restate(problem: str) -> str:
 # only authors the *tailored* prose (restatement, fit_reason, solution summary +
 # steps); enrich_payload() merges these in afterward.
 
-def default_stack_notes() -> list[str]:
-    return [
-        "Provider-agnostic LLM (Claude / OpenAI / Gemini)",
-        "RAG retrieval over your data",
-        "Tool-calling + webhooks into your systems",
-        "Eval harness + cost/latency observability",
-    ]
-
-
 def default_timeline() -> list[dict]:
     return [
         {"name": "Discovery & scoping", "duration": "1-2 days", "deliverable": "Fixed scope, success criteria, data sources"},
@@ -199,15 +190,15 @@ def default_consult_payload(problem: str, service_ids: list[str] | None = None) 
         "services": services,
         "solution": {
             "summary": (
-                "I'd build this as a grounded agent over your own data, with the "
-                "production pieces — guardrails, evaluation, and cost observability "
-                "— wired in from the start so it holds up in production."
+                "A grounded AI agent over your own data — answering and acting for "
+                "you, and dependable enough to run in production."
             ),
-            "architecture_steps": [
-                "Ingest your content/data into a retrieval index",
-                "A grounded agent answers (and acts) using only your sources, with citations",
-                "Anti-hallucination guardrails refuse when the data doesn't cover it",
-                "Per-run cost/latency tracing plus a hard daily cost ceiling",
+            "outcomes": [
+                "Answers your users from your own content",
+                "Every answer backed by a source",
+                "Takes the action for you, not just chat",
+                "Won't make things up",
+                "You can see what it does and what it costs",
             ],
         },
     }
@@ -246,8 +237,7 @@ def enrich_payload(args: dict, problem: str) -> dict:
 
     solution = dict(out.get("solution") or {})
     solution.setdefault("summary", "")
-    solution.setdefault("architecture_steps", [])
-    solution["stack_notes"] = default_stack_notes()
+    solution.setdefault("outcomes", [])
     out["solution"] = solution
 
     out["timeline"] = default_timeline()
