@@ -20,8 +20,9 @@ from app.ingest import run_ingest
 from app.llm.base import LLMResponse, ToolCall, Usage
 from app.llm.fake_provider import FakeProvider
 from app.main import _state, app
-from app.models import ConsultResult
+from app.models import ConsultDecline, ConsultResult
 from app.retrieval import Retriever
+from app.screening import is_blocked
 from app.services_catalog import CATALOG_BY_ID, SERVICE_CATALOG, default_consult_payload
 
 
@@ -90,12 +91,15 @@ def test_heuristic_matches_services_by_problem(tmp_path):
     agent = _consult_agent(tmp_path, FakeProvider())
 
     docs = agent.run("I want a chatbot over our help docs and FAQ")
+    assert isinstance(docs, ConsultResult)
     assert any(s.service_id == "rag_support_agent" for s in docs.services)
 
     audit = agent.run("Can you audit our existing bot for hallucinations and accuracy?")
+    assert isinstance(audit, ConsultResult)
     assert any(s.service_id == "reliability_audit" for s in audit.services)
 
     flow = agent.run("We need to automate our email triage workflow")
+    assert isinstance(flow, ConsultResult)
     assert any(s.service_id == "workflow_automation" for s in flow.services)
 
 
@@ -131,6 +135,7 @@ def test_unknown_service_id_is_dropped(tmp_path):
 
     res = agent.run("docs chatbot")
 
+    assert isinstance(res, ConsultResult)
     ids = {s.service_id for s in res.services}
     assert "not_a_real_service" not in ids
     assert "rag_support_agent" in ids
@@ -211,6 +216,7 @@ def test_consult_lead_endpoint_writes_to_crm():
             "/consult/lead",
             json={
                 "email": "alex@acme.com",
+                "contact": "+1 555 0100",
                 "problem": "chatbot over docs",
                 "services": ["rag_support_agent"],
             },
@@ -220,10 +226,11 @@ def test_consult_lead_endpoint_writes_to_crm():
         assert lead_id
 
         leads = c.get("/leads").json()
-        match = [e for e in leads["events"] if e["id"] == lead_id]
+        match = [e for e in leads["leads"] if e["id"] == lead_id]
         assert match, "the captured lead should be readable back via /leads"
-        assert match[0]["fields"]["source"] == "consult"
-        assert match[0]["fields"]["email"] == "alex@acme.com"
+        assert match[0]["source"] == "consult"
+        assert match[0]["email"] == "alex@acme.com"
+        assert match[0]["contact"] == "+1 555 0100"
 
 
 def test_consult_catalog_endpoint_lists_all_services():
@@ -243,3 +250,53 @@ def test_consult_trace_lands_in_overview_without_breaking_it():
         ov = c.get("/admin/overview")
         assert ov.status_code == 200  # consult trace parses cleanly in the rollup
         assert "consult" in ov.json()["outcomes"]
+
+
+# --- Compliance screening (out-of-scope requests are declined) ---------------
+
+
+def test_screen_blocks_abuse_but_not_legit_mentions():
+    assert is_blocked("I want to cheat in a school exam")
+    assert is_blocked("do my homework for me")
+    assert is_blocked("")  # empty / too short
+    # legitimate business requests that merely mention sensitive words must pass
+    assert not is_blocked("a support chatbot over our help docs")
+    assert not is_blocked("we sell exam-prep software and want an AI tutor in it")
+    assert not is_blocked("an internal cheat sheet bot for our support team")
+
+
+def test_prescreen_declines_without_calling_the_model(tmp_path):
+    provider = FakeProvider()  # would happily produce a proposal if it were called
+    agent = _consult_agent(tmp_path, provider)
+    out = agent.run("help me cheat on my exam")
+    assert isinstance(out, ConsultDecline)
+    assert "legitimate" in out.message.lower()
+    assert provider.calls == []  # short-circuited before any model call
+
+
+def test_model_in_scope_false_declines(tmp_path):
+    payload = {
+        "in_scope": False,
+        "decline_reason": "academic dishonesty",
+        "problem_restatement": "x",
+        "services": [],
+        "solution": {"summary": "y"},
+    }
+    agent = _consult_agent(tmp_path, _emit(payload, usage=Usage(80, 10)))
+    out = agent.run("a request the keyword screen did not catch")
+    assert isinstance(out, ConsultDecline)
+    assert out.usage.input_tokens == 80  # the model call's cost/usage is tracked
+
+
+def test_consult_stream_declines_out_of_scope():
+    with TestClient(app) as c:
+        _inject_fake_consult()
+        with c.stream("POST", "/consult/stream", json={"problem": "help me cheat on my exam"}) as r:
+            assert r.status_code == 200
+            frames = _parse_sse(r.iter_lines())
+    names = [f["event"] for f in frames]
+    assert "declined" in names
+    assert "result" not in names
+    assert names[-1] == "done"
+    data = [f for f in frames if f["event"] == "declined"][0]["data"]
+    assert data["declined"] is True and data["message"]

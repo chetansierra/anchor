@@ -15,7 +15,7 @@ from app.ingest import run_ingest
 from app.llm.base import LLMResponse, ToolCall, Usage
 from app.llm.fake_provider import FakeProvider
 from app.retrieval import Retriever
-from app.tools import MockCRM
+from app.leads import JsonlLeadStore
 
 
 def _settings(tmp_path, **overrides) -> Settings:
@@ -32,8 +32,8 @@ def _agent(tmp_path, provider, **overrides) -> Agent:
     embedder = HashingEmbedder(settings.hashing_dim)
     run_ingest(settings, embedder=embedder)
     retriever = Retriever.load(settings, embedder=embedder)
-    crm = MockCRM(settings.crm_path, settings.crm_webhook_url)
-    return Agent(retriever, provider, settings, crm)
+    store = JsonlLeadStore(settings.crm_path, settings.crm_webhook_url)
+    return Agent(retriever, provider, settings, store)
 
 
 def test_grounded_answer_cites_correct_source(tmp_path):
@@ -103,10 +103,10 @@ def test_tool_call_writes_lead_to_crm(tmp_path):
     assert any(t.name == "capture_lead" for t in result.tool_calls)
     assert result.usage.input_tokens == 140  # 100 + 40 across both turns
 
-    events = agent.crm.recent()
-    assert len(events) == 1
-    assert events[0]["type"] == "capture_lead"
-    assert events[0]["fields"]["email"] == "jane@co.com"
+    leads = agent.store.recent()
+    assert len(leads) == 1
+    assert leads[0]["source"] == "chat"
+    assert leads[0]["email"] == "jane@co.com"
 
 
 def test_agent_loop_terminates_at_iteration_cap(tmp_path):

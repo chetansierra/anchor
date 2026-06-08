@@ -107,16 +107,34 @@ class KbResponse(BaseModel):
     documents: list[KbDoc]
 
 
-class LeadEvent(BaseModel):
+class LeadRow(BaseModel):
     id: str
-    type: str
     created_at: str
-    fields: dict
+    source: str | None = None
+    email: str | None = None
+    contact: str | None = None
+    problem: str | None = None
+    services: list[str] = []
+    country: str | None = None
+    talk_to: bool | None = None
+    note: str | None = None
+    status: str | None = "new"
+    updated_at: str | None = None
+    meta: dict = {}
 
 
 class LeadsResponse(BaseModel):
     count: int
-    events: list[LeadEvent]
+    leads: list[LeadRow]
+
+
+class LeadUpdateRequest(BaseModel):
+    """Operator edits from the admin. Only the fields actually sent are applied."""
+
+    talk_to: bool | None = None
+    country: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=4000)
+    status: str | None = Field(default=None, max_length=40)
 
 
 # --- Consult: the self-referential "AI solutions consultant" (v2 hero) -------
@@ -167,13 +185,28 @@ class ConsultResult(BaseModel):
     model: str = ""
 
 
+class ConsultDecline(BaseModel):
+    """Returned instead of a proposal when a request is out of scope / not a
+    legitimate business AI need (pre-screen or the model's in_scope judgment)."""
+
+    declined: bool = True
+    message: str
+    reason: str = ""  # internal note for traces, not shown verbatim
+    # observability (0 for a pre-screen decline that never called the model)
+    usage: UsageInfo = UsageInfo()
+    cost_usd: float = 0.0
+    latency_ms: float = 0.0
+    provider: str = ""
+    model: str = ""
+
+
 class ConsultRequest(BaseModel):
     problem: str = Field(min_length=1, max_length=2000)
 
 
 class ConsultLeadRequest(BaseModel):
     email: str = Field(min_length=3, max_length=200)
-    name: str | None = Field(default=None, max_length=200)
+    contact: str | None = Field(default=None, max_length=200)
     problem: str | None = Field(default=None, max_length=2000)
     services: list[str] = []
 

@@ -16,17 +16,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
 from . import __version__
+from .admin_leads_page import ADMIN_LEADS_HTML
 from .admin_page import ADMIN_HTML
 from .agent import Agent, AgentResult
 from .config import get_settings
 from .consult import ConsultAgent
 from .ingest import run_ingest
+from .leads import build_lead_store
 from .limits import RateLimiter, enforce_demo_limits
 from .models import (
     CatalogResponse,
     CatalogService,
     ChatRequest,
     ChatResponse,
+    ConsultDecline,
     ConsultLeadRequest,
     ConsultRequest,
     ConsultResult,
@@ -34,7 +37,9 @@ from .models import (
     HealthResponse,
     IngestResponse,
     KbResponse,
+    LeadRow,
     LeadsResponse,
+    LeadUpdateRequest,
     OverviewResponse,
     QueryRequest,
     QueryResponse,
@@ -42,7 +47,6 @@ from .models import (
 )
 from .retrieval import Retriever
 from .services_catalog import SERVICE_CATALOG
-from .tools import MockCRM
 from .traces import TraceStore
 from .vectorstore import LocalVectorStore
 
@@ -98,6 +102,10 @@ async def lifespan(app: FastAPI):
     _state["services_retriever"] = _load_retriever_safely(settings.services_index_path)
     _state["agent"] = None
     _state["consult_agent"] = None
+    try:  # create the leads table if using Postgres; harmless for the JSONL store
+        _lead_store.ensure_schema()
+    except Exception:
+        pass
     yield
 
 
@@ -108,12 +116,23 @@ _origins = [o.strip() for o in get_settings().cors_allow_origins.split(",") if o
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins or ["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["*"],
 )
 
 # Per-IP rate limiter for the open demo (shared across requests, single process).
 _rate_limiter = RateLimiter(get_settings().rate_limit_per_minute)
+
+# Durable lead store (Postgres when DATABASE_URL is set, else local JSONL).
+_lead_store = build_lead_store(get_settings())
+
+
+def _require_admin(token: str | None) -> None:
+    """Gate the leads admin + /leads when an ADMIN_TOKEN is configured (prod).
+    Unset -> open (local dev), mirroring the demo-API-key seam."""
+    expected = get_settings().admin_token
+    if expected and token != expected:
+        raise HTTPException(status_code=401, detail="Admin token required.")
 
 _STATIC = Path(__file__).resolve().parent / "static"
 # Suggested prompt chips the widget shows on open (grounded in the seeded KB).
@@ -269,10 +288,45 @@ def chat(
 
 
 @app.get("/leads", response_model=LeadsResponse)
-def leads(limit: int = 20) -> LeadsResponse:
-    settings = get_settings()
-    events = MockCRM(settings.crm_path).recent(limit)
-    return LeadsResponse(count=len(events), events=events)
+def leads(
+    limit: int = 100,
+    source: str | None = None,
+    status: str | None = None,
+    country: str | None = None,
+    talk_to: bool | None = None,
+    q: str | None = None,
+    x_admin_token: str | None = Header(default=None),
+    token: str | None = None,
+) -> LeadsResponse:
+    """Recent leads (newest first), filterable. Admin-gated when ADMIN_TOKEN is set
+    (real prospect PII). The admin page passes the token via header or ?token=."""
+    _require_admin(x_admin_token or token)
+    rows = _lead_store.recent(
+        limit, source=source, status=status, country=country, talk_to=talk_to, q=q
+    )
+    return LeadsResponse(count=len(rows), leads=rows)
+
+
+@app.get("/admin/leads", response_class=HTMLResponse, include_in_schema=False)
+def admin_leads(token: str | None = None) -> HTMLResponse:
+    """The leads dashboard — a self-contained page that reads /leads and lets you
+    set talk_to / country / note / status. Gated by ?token= when configured."""
+    _require_admin(token)
+    return HTMLResponse(ADMIN_LEADS_HTML)
+
+
+@app.patch("/admin/leads/{lead_id}", response_model=LeadRow)
+def admin_lead_update(
+    lead_id: str,
+    req: LeadUpdateRequest,
+    x_admin_token: str | None = Header(default=None),
+    token: str | None = None,
+) -> LeadRow:
+    _require_admin(x_admin_token or token)
+    updated = _lead_store.update(lead_id, req.model_dump(exclude_unset=True))
+    if updated is None:
+        raise HTTPException(status_code=404, detail=f"No lead {lead_id!r}.")
+    return LeadRow(**updated)
 
 
 # --- Consult: the AI solutions consultant (v2 hero) -------------------------
@@ -317,18 +371,24 @@ def consult_stream(
 
     def gen():
         result: ConsultResult | None = None
+        decline: ConsultDecline | None = None
         try:
             for event, payload in agent.run_streamed(req.problem):
                 if event == "result" and isinstance(payload, ConsultResult):
                     result = payload
                     yield _sse("result", payload.model_dump())
+                elif event == "declined" and isinstance(payload, ConsultDecline):
+                    decline = payload
+                    yield _sse("declined", payload.model_dump())
                 elif isinstance(payload, dict):
                     yield _sse(event, payload)
-            if result is not None:
-                try:  # best-effort trace; never break the stream on a write error
+            try:  # best-effort trace; never break the stream on a write error
+                if result is not None:
                     store.record_consult(req.problem, result)
-                except Exception:
-                    pass
+                elif decline is not None:
+                    store.record_consult_decline(req.problem, decline)
+            except Exception:
+                pass
         except Exception as exc:
             yield _sse("error", {"detail": str(exc), "code": 500})
         yield _sse("done", {})
@@ -363,15 +423,16 @@ def consult_lead(
             detail="You're sending requests a bit fast — please wait a moment and try again.",
             headers={"Retry-After": "30"},
         )
-    fields: dict = {"email": req.email, "source": "consult"}
-    if req.name:
-        fields["name"] = req.name
-    if req.problem:
-        fields["problem"] = req.problem
-    if req.services:
-        fields["services"] = req.services
-    event = MockCRM(settings.crm_path, settings.crm_webhook_url).record("capture_lead", fields)
-    return {"id": event["id"], "status": "captured"}
+    lead = _lead_store.add(
+        "consult",
+        {
+            "email": req.email,
+            "contact": req.contact,
+            "problem": req.problem,
+            "services": req.services,
+        },
+    )
+    return {"id": lead["id"], "status": "captured"}
 
 
 @app.get("/consult/catalog", response_model=CatalogResponse)

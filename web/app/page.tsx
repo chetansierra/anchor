@@ -6,9 +6,10 @@ import type { ConsultResult, Stage, StageFrame } from "@/lib/types";
 import { HeroPrompt } from "@/components/HeroPrompt";
 import { ThinkingStepper } from "@/components/ThinkingStepper";
 import { ConsultResultView } from "@/components/ConsultResultView";
+import { ResultToc } from "@/components/ResultToc";
 import { RagWidget } from "@/components/RagWidget";
 
-type Phase = "idle" | "streaming" | "done" | "error";
+type Phase = "idle" | "streaming" | "done" | "error" | "declined";
 
 function applyStage(prev: Stage[], frame: StageFrame): Stage[] {
   if (frame.status === "start" && frame.label) {
@@ -30,6 +31,7 @@ export default function Home() {
   const [problem, setProblem] = useState("");
   const [stages, setStages] = useState<Stage[]>([]);
   const [result, setResult] = useState<ConsultResult | null>(null);
+  const [declined, setDeclined] = useState("");
   const [error, setError] = useState("");
 
   const start = useCallback((p: string) => {
@@ -37,6 +39,7 @@ export default function Home() {
     setProblem(p);
     setStages([]);
     setResult(null);
+    setDeclined("");
     setError("");
     streamConsult(p, {
       onStage: (frame) => setStages((prev) => applyStage(prev, frame)),
@@ -44,6 +47,11 @@ export default function Home() {
         setResult(r);
         setStages((prev) => prev.map((s) => ({ ...s, status: "done" as const })));
         setPhase("done");
+      },
+      onDecline: (d) => {
+        setDeclined(d.message);
+        setStages([]); // hide the stepper — no proposal for this one
+        setPhase("declined");
       },
       onError: (msg) => {
         setError(msg);
@@ -78,23 +86,46 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[920px] px-5 pb-24">
-        {(busy || stages.length > 0) && (
-          <div className="mb-5">
-            <ThinkingStepper stages={stages} />
+      <section className="mx-auto max-w-[1160px] px-5 pb-24">
+        {result ? (
+          // Once the result renders: content + a sticky right-rail table of contents.
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_200px] lg:gap-10">
+            <div className="min-w-0">
+              {stages.length > 0 && (
+                <div className="mb-5">
+                  <ThinkingStepper stages={stages} />
+                </div>
+              )}
+              <ConsultResultView result={result} problem={problem} />
+            </div>
+            <div className="hidden lg:block">
+              <ResultToc />
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-[920px]">
+            {(busy || stages.length > 0) && (
+              <div className="mb-5">
+                <ThinkingStepper stages={stages} />
+              </div>
+            )}
+
+            {phase === "declined" && declined && (
+              <div className="rounded-card border border-line bg-soft/60 p-5 text-[15px] leading-relaxed text-ink animate-fade-up">
+                {declined}
+              </div>
+            )}
+
+            {phase === "error" && (
+              <div className="rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {error}{" "}
+                <button onClick={() => start(problem)} className="font-semibold underline">
+                  try again
+                </button>
+              </div>
+            )}
           </div>
         )}
-
-        {phase === "error" && (
-          <div className="rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}{" "}
-            <button onClick={() => start(problem)} className="font-semibold underline">
-              try again
-            </button>
-          </div>
-        )}
-
-        {result && <ConsultResultView result={result} problem={problem} />}
       </section>
 
       {/* The RAG support agent (Nimbus) as a floating launcher, with a one-time
