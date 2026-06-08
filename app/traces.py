@@ -5,7 +5,7 @@ operator needs to answer "what happened, how long, how much": question, answer,
 outcome, retrieved chunks (with scores), tool calls, token usage, $ cost, and
 latency. The /admin view reads these back; the cost CLI rolls them up by day.
 
-Append-only JSONL, mirroring the MockCRM sink — no database to stand up, and the
+Append-only JSONL, mirroring the JSONL lead sink — no database to stand up, and the
 file is trivially greppable. Writes are best-effort: a trace failure must never
 break a live answer.
 """
@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .agent import AgentResult
-from .models import ConsultResult
+from .models import ConsultDecline, ConsultResult
 
 
 def build_consult_trace(problem: str, result: ConsultResult) -> dict:
@@ -52,6 +52,32 @@ def build_consult_trace(problem: str, result: ConsultResult) -> dict:
         ],
         "citations": [c.model_dump() for c in result.citations],
         "retrieved": [r.model_dump() for r in result.retrieved],
+    }
+
+
+def build_consult_decline_trace(problem: str, decline: ConsultDecline) -> dict:
+    """A flat trace for a declined consult (pre-screen or model in_scope=false),
+    same shape as the others so /admin + the cost rollup keep working."""
+    return {
+        "id": f"trace_{uuid.uuid4().hex[:10]}",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "question": problem,
+        "answer": decline.message,
+        "outcome": "declined",
+        "grounded": False,
+        "escalated": False,
+        "provider": decline.provider,
+        "model": decline.model,
+        "latency_ms": decline.latency_ms,
+        "usage": {
+            "input_tokens": decline.usage.input_tokens,
+            "output_tokens": decline.usage.output_tokens,
+        },
+        "cost_usd": decline.cost_usd,
+        "iterations": 0,
+        "tool_calls": [],
+        "citations": [],
+        "retrieved": [],
     }
 
 
@@ -131,6 +157,10 @@ class TraceStore:
     def record_consult(self, problem: str, result: ConsultResult) -> dict:
         """Append a consultant run's trace (same file/shape as /chat traces)."""
         return self._append(build_consult_trace(problem, result))
+
+    def record_consult_decline(self, problem: str, decline: ConsultDecline) -> dict:
+        """Append a trace for a declined (out-of-scope) consult request."""
+        return self._append(build_consult_decline_trace(problem, decline))
 
     def _append(self, trace: dict) -> dict:
         self.path.parent.mkdir(parents=True, exist_ok=True)

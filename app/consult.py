@@ -26,8 +26,9 @@ from pydantic import ValidationError
 from .config import Settings
 from .llm import LLMMessage, LLMProvider, ToolSpec, build_llm_provider
 from .llm.pricing import estimate_cost_usd
-from .models import ConsultResult
+from .models import ConsultDecline, ConsultResult
 from .retrieval import Retriever
+from .screening import DECLINE_MESSAGE, is_blocked
 from .services_catalog import (
     SERVICE_CATALOG,
     catalog_ids,
@@ -45,10 +46,12 @@ CONSULT_SYSTEM_PROMPT = """You are the AI solutions consultant for {name}, a bac
 
 A visitor has described an AI problem. Scope it by calling the SINGLE tool `emit_consult` exactly once. Ground everything in the SOURCES (which describe {name}'s actual services and approach) in the user's message — don't invent capabilities the sources don't support.
 
+SCOPE & COMPLIANCE: Only help with legitimate, lawful AI needs for a business or organization. If the request is NOT a genuine business/organizational use case — e.g. personal academic dishonesty (cheating, homework, exams), or anything harmful, illegal, deceptive, or clearly off-topic — set `in_scope` to false, give a one-line `decline_reason`, and do NOT propose any services. Otherwise set `in_scope` to true and fill the proposal below. (Note: legitimate business requests that merely mention schools, exams, or similar — e.g. an edtech product, or grading tools a company sells — ARE in scope.)
+
 Choose the 1-3 services that genuinely fit, using these exact service_id values (never invent one):
 {catalog}
 
-In the tool call provide only:
+When `in_scope` is true, provide:
 - problem_restatement: one or two plain sentences showing you understood them.
 - services: 1-3 matches, each with its service_id and a fit_reason tied to THEIR problem and grounded in the sources. (Pricing and what's-included are filled in automatically — don't restate them.)
 - solution: a one-line summary, plus `outcomes` — 3-5 crisp bullet fragments (NOT full sentences) describing what the client GETS: the end product for their business and customers. Describe the result, not the technology, stack, or infrastructure.
@@ -67,6 +70,14 @@ def _emit_consult_tool() -> ToolSpec:
         input_schema={
             "type": "object",
             "properties": {
+                "in_scope": {
+                    "type": "boolean",
+                    "description": "true if this is a legitimate business/organizational AI request; false for harmful, unlawful, academic-dishonesty, deceptive, or clearly off-topic requests.",
+                },
+                "decline_reason": {
+                    "type": "string",
+                    "description": "If in_scope is false, a short, polite one-line reason. Leave empty when in_scope is true.",
+                },
                 "problem_restatement": {
                     "type": "string",
                     "description": "One or two sentences restating the visitor's problem in your own words.",
@@ -109,7 +120,7 @@ def _emit_consult_tool() -> ToolSpec:
                     "required": ["summary"],
                 },
             },
-            "required": ["problem_restatement", "services", "solution"],
+            "required": ["in_scope", "problem_restatement", "services", "solution"],
         },
     )
 
@@ -168,14 +179,16 @@ class ConsultAgent:
     def build(cls, retriever: Retriever, settings: Settings) -> "ConsultAgent":
         return cls(retriever, build_llm_provider(settings), settings)
 
-    def run(self, problem: str) -> ConsultResult:
-        """Drain the streamed run and return the final structured result."""
-        result: ConsultResult | None = None
+    def run(self, problem: str) -> ConsultResult | ConsultDecline:
+        """Drain the streamed run and return the final outcome (proposal or decline)."""
+        out: ConsultResult | ConsultDecline | None = None
         for event, payload in self.run_streamed(problem):
             if event == "result" and isinstance(payload, ConsultResult):
-                result = payload
-        assert result is not None  # run_streamed always yields exactly one result
-        return result
+                out = payload
+            elif event == "declined" and isinstance(payload, ConsultDecline):
+                out = payload
+        assert out is not None  # always yields exactly one result/decline
+        return out
 
     def run_streamed(self, problem: str) -> Iterator[tuple[str, object]]:
         """Yield staged events, then the final ConsultResult.
@@ -187,6 +200,11 @@ class ConsultAgent:
         """
         started = time.perf_counter()
 
+        # Compliance pre-screen — decline obvious abuse before spending a model call.
+        if is_blocked(problem):
+            yield ("declined", ConsultDecline(message=DECLINE_MESSAGE, reason="pre-screen"))
+            return
+
         yield ("stage", {"step": "understanding", "label": "Understanding your problem", "status": "start"})
 
         yield ("stage", {"step": "matching", "label": "Matching services", "status": "start"})
@@ -194,16 +212,23 @@ class ConsultAgent:
         yield ("stage", {"step": "matching", "status": "done", "meta": {"docs": len(hits)}})
 
         yield ("stage", {"step": "drafting", "label": "Drafting an approach", "status": "start"})
-        result = self._draft(problem, hits, started)
+        outcome = self._draft(problem, hits, started)
         yield ("stage", {"step": "drafting", "status": "done"})
+
+        # The model can also decline (in_scope=false) for cases the pre-screen missed.
+        if isinstance(outcome, ConsultDecline):
+            yield ("declined", outcome)
+            return
 
         yield ("stage", {"step": "timeline", "label": "Sketching a timeline", "status": "start"})
         yield ("stage", {"step": "timeline", "status": "done"})
 
-        yield ("result", result)
+        yield ("result", outcome)
 
     # --- internals -----------------------------------------------------------
-    def _draft(self, problem: str, hits: list[SearchHit], started: float) -> ConsultResult:
+    def _draft(
+        self, problem: str, hits: list[SearchHit], started: float
+    ) -> ConsultResult | ConsultDecline:
         messages = [
             LLMMessage(
                 role="user",
@@ -233,9 +258,22 @@ class ConsultAgent:
             "model": self.provider.model,
         }
 
-        # The model authors only tailored prose; enrich_payload merges in the
-        # deterministic catalog facts + timeline + stack notes (script, not tokens).
         args = resp.tool_calls[0].arguments if resp.tool_calls else {}
+
+        # Model-side compliance gate: decline anything it judged out of scope.
+        if isinstance(args, dict) and args.get("in_scope") is False:
+            return ConsultDecline(
+                message=DECLINE_MESSAGE,
+                reason=str(args.get("decline_reason") or "model")[:200],
+                usage=observability["usage"],
+                cost_usd=observability["cost_usd"],
+                latency_ms=observability["latency_ms"],
+                provider=observability["provider"],
+                model=observability["model"],
+            )
+
+        # The model authors only tailored prose; enrich_payload merges in the
+        # deterministic catalog facts + timeline (script, not tokens).
         enriched = enrich_payload(args, problem)
         try:
             return ConsultResult.model_validate({**enriched, **observability})

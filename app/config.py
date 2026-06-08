@@ -79,9 +79,15 @@ class Settings(BaseSettings):
     # Day 3 eval caught 800 cutting off answer details near the end of sources).
     source_char_budget: int = 1600
 
-    # --- Mock CRM (tool action sink) ----------------------------------------
+    # --- Lead storage (CRM sink) --------------------------------------------
     crm_dir: str = "data/crm"
-    crm_webhook_url: str | None = None  # optional: POST each event here too
+    crm_webhook_url: str | None = None  # optional: POST each lead here too
+    # Durable store: set to a Postgres/Neon URL to persist leads across restarts;
+    # unset -> local append-only JSONL (fine for dev + keyless tests).
+    database_url: str | None = None
+    # Shared secret gating the /admin/leads dashboard + /leads (real prospect PII).
+    # Unset -> open (local dev); set it in production.
+    admin_token: str | None = None
 
     # --- Observability (Day 4) ----------------------------------------------
     # Per-run traces (latency, tokens, $, retrieved chunks, tool calls, outcome)

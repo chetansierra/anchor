@@ -16,10 +16,11 @@ import time
 from dataclasses import dataclass, field
 
 from .config import Settings
+from .leads import LeadStore, build_lead_store
 from .llm import LLMMessage, LLMProvider, ToolResult, Usage, build_llm_provider
 from .llm.pricing import estimate_cost_usd
 from .retrieval import Retriever
-from .tools import MockCRM, build_registry
+from .tools import build_registry
 from .vectorstore import SearchHit
 
 SYSTEM_PROMPT = """You are the customer support assistant for {business}, a B2B SaaS product.
@@ -102,13 +103,13 @@ class Agent:
         retriever: Retriever,
         provider: LLMProvider,
         settings: Settings,
-        crm: MockCRM | None = None,
+        store: LeadStore | None = None,
     ) -> None:
         self.retriever = retriever
         self.provider = provider
         self.settings = settings
-        self.crm = crm or MockCRM(settings.crm_path, settings.crm_webhook_url)
-        self.registry = build_registry(self.crm)
+        self.store = store or build_lead_store(settings)
+        self.registry = build_registry(self.store)
         self._system = SYSTEM_PROMPT.format(business=settings.business_name)
 
     @classmethod

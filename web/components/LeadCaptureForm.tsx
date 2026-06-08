@@ -11,7 +11,7 @@ export function LeadCaptureForm({
   serviceIds: string[];
 }) {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -21,7 +21,12 @@ export function LeadCaptureForm({
     setStatus("sending");
     setError("");
     try {
-      await submitLead({ email: email.trim(), name: name.trim() || undefined, problem, services: serviceIds });
+      await submitLead({
+        email: email.trim(),
+        contact: contact.trim() || undefined,
+        problem,
+        services: serviceIds,
+      });
       setStatus("done");
     } catch (err) {
       setError((err as Error).message);
@@ -32,10 +37,9 @@ export function LeadCaptureForm({
   if (status === "done") {
     return (
       <div className="rounded-card border border-brand/30 bg-soft p-5 text-center animate-fade-up">
-        <p className="text-base font-semibold text-brand-ink">Lead captured ✅</p>
+        <p className="text-base font-semibold text-brand-ink">Thanks — you&apos;re in ✅</p>
         <p className="mt-1 text-sm text-muted">
-          Thanks — I&apos;ll follow up about scoping this for you. (In the demo this wrote a row
-          to the mock CRM.)
+          I&apos;ll follow up about scoping this for you.
         </p>
       </div>
     );
@@ -52,19 +56,19 @@ export function LeadCaptureForm({
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name (optional)"
-          className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-line-strong sm:w-1/3"
-        />
-        <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@company.com"
           className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-line-strong"
+        />
+        <input
+          type="text"
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Phone / alt contact (optional)"
+          className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-line-strong sm:w-2/5"
         />
         <button
           type="submit"

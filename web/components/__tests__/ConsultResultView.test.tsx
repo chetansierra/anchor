@@ -7,9 +7,11 @@ describe("ConsultResultView", () => {
   it("renders all four artifact types from a ConsultResult", () => {
     render(<ConsultResultView result={sampleResult} problem="docs chatbot" />);
 
-    // 1. matched service cards (no price shown)
+    // 1. matched service cards (numbered, no price shown)
     expect(screen.getByText("Website AI support agent")).toBeInTheDocument();
     expect(screen.getByText("AI lead-capture & booking agent")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument(); // numbered 1..N
+    expect(screen.getByText("2")).toBeInTheDocument();
 
     // 2. solution as outcome bullets ("What you'll get")
     expect(screen.getByText("What you'll get")).toBeInTheDocument();

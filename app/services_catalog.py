@@ -186,6 +186,7 @@ def default_consult_payload(problem: str, service_ids: list[str] | None = None) 
         )
 
     return {
+        "in_scope": True,
         "problem_restatement": _restate(problem),
         "services": services,
         "solution": {

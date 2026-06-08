@@ -13,8 +13,8 @@ from app.eval.judge import parse_verdict
 from app.ingest import run_ingest
 from app.llm.base import LLMResponse, Usage
 from app.llm.fake_provider import FakeProvider
+from app.leads import JsonlLeadStore
 from app.retrieval import Retriever
-from app.tools import MockCRM
 
 
 def _pass(reason="ok"):
@@ -35,7 +35,7 @@ def _agent(tmp_path, **overrides) -> Agent:
     emb = HashingEmbedder(settings.hashing_dim)
     run_ingest(settings, embedder=emb)
     retriever = Retriever.load(settings, embedder=emb)
-    return Agent(retriever, FakeProvider(), settings, MockCRM(settings.crm_path))
+    return Agent(retriever, FakeProvider(), settings, JsonlLeadStore(settings.crm_path))
 
 
 def test_parse_verdict():

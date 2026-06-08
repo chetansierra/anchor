@@ -1,7 +1,7 @@
 // Typed client for the FastAPI consult backend (browser -> FastAPI, direct CORS).
 
 import { streamSSE } from "./sse";
-import type { CatalogService, ConsultResult, StageFrame } from "./types";
+import type { CatalogService, ConsultDecline, ConsultResult, StageFrame } from "./types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") || "http://127.0.0.1:8000";
@@ -9,6 +9,7 @@ export const API_BASE =
 export interface ConsultHandlers {
   onStage: (frame: StageFrame) => void;
   onResult: (result: ConsultResult) => void;
+  onDecline: (decline: ConsultDecline) => void;
   onError: (message: string) => void;
   onDone: () => void;
 }
@@ -28,6 +29,7 @@ export async function streamConsult(
         onFrame: ({ event, data }) => {
           if (event === "stage") handlers.onStage(data as StageFrame);
           else if (event === "result") handlers.onResult(data as ConsultResult);
+          else if (event === "declined") handlers.onDecline(data as ConsultDecline);
           else if (event === "error") {
             const d = data as { detail?: string };
             handlers.onError(d?.detail || "Something went wrong.");
@@ -43,7 +45,7 @@ export async function streamConsult(
 
 export interface LeadPayload {
   email: string;
-  name?: string;
+  contact?: string;
   problem?: string;
   services?: string[];
 }

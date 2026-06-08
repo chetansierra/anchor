@@ -66,6 +66,12 @@ export interface StageFrame {
   meta?: { docs?: number };
 }
 
+// Returned instead of a proposal when the request is out of scope.
+export interface ConsultDecline {
+  declined: boolean;
+  message: string;
+}
+
 export interface CatalogService {
   id: string;
   name: string;
