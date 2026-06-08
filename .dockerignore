@@ -2,7 +2,19 @@
 __pycache__/
 *.pyc
 .git/
+.github/
+# Front-end is deployed separately (Vercel) — keep it out of the backend image.
+web/
+# Generated artifacts (indexes are rebuilt in the image; CRM/traces are runtime).
 data/index/
+data/services_index/
+data/crm/
+data/traces/
+data/eval/report.json
 .pytest_cache/
 .env
 .DS_Store
+# Local-only / private files.
+learnings/
+MAIN_GOAL.MD
+css_green_palette_handoff.md

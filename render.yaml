@@ -1,0 +1,24 @@
+# Render blueprint for the backend (FastAPI). One container, built from the
+# Dockerfile, which also builds both indexes at image-build time.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> point at this repo.
+# Then set ANTHROPIC_API_KEY and CORS_ALLOW_ORIGINS (your front-end origin).
+# Render injects $PORT automatically; the Dockerfile CMD honors it.
+#
+# Railway/Fly work the same way straight from the Dockerfile if you prefer them.
+services:
+  - type: web
+    name: anchor-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false # set in the dashboard (secret)
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-4-5 # cheap default; bump to sonnet for quality
+      - key: CORS_ALLOW_ORIGINS
+        sync: false # set to your front-end origin, e.g. https://yourdomain.com
+      - key: DAILY_COST_CEILING_USD
+        value: "5"

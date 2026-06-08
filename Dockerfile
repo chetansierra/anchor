@@ -7,12 +7,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# App code + seeded KB.
+# App code + both seeded corpora (Nimbus support KB + the services KB).
 COPY app ./app
 COPY scripts ./scripts
 COPY data/kb ./data/kb
+COPY data/services_kb ./data/services_kb
 
-# Build the index at image-build time so /query works on first boot.
+# Build both indexes at image-build time so /chat and /consult work on first boot.
 RUN python -m scripts.ingest_cli
 
 EXPOSE 8000
