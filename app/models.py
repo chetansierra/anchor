@@ -119,6 +119,77 @@ class LeadsResponse(BaseModel):
     events: list[LeadEvent]
 
 
+# --- Consult: the self-referential "AI solutions consultant" (v2 hero) -------
+
+
+class PriceBand(BaseModel):
+    label: str = "Fixed scope"
+    low_usd: int
+    high_usd: int
+
+
+class ServiceMatch(BaseModel):
+    service_id: str  # must be one of the SERVICE_CATALOG ids
+    name: str
+    fit_reason: str
+    whats_included: list[str] = []
+    price_band: PriceBand
+    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
+
+
+class TimelinePhase(BaseModel):
+    name: str
+    duration: str
+    deliverable: str = ""
+
+
+class SolutionSketch(BaseModel):
+    summary: str
+    # crisp end-product bullets — what the client GETS, not the infrastructure
+    outcomes: list[str] = []
+
+
+class ConsultResult(BaseModel):
+    # --- LLM-authored (via the emit_consult tool): tailored prose only -------
+    problem_restatement: str
+    services: list[ServiceMatch] = Field(min_length=1, max_length=3)
+    solution: SolutionSketch
+    # --- script-filled from the catalog (deterministic, not model tokens) ---
+    timeline: list[TimelinePhase] = []
+    # --- observability (filled by the agent, never asked of the model) ------
+    grounded: bool = True
+    citations: list[Citation] = []
+    retrieved: list[RetrievedSource] = []
+    usage: UsageInfo = UsageInfo()
+    cost_usd: float = 0.0
+    latency_ms: float = 0.0
+    provider: str = ""
+    model: str = ""
+
+
+class ConsultRequest(BaseModel):
+    problem: str = Field(min_length=1, max_length=2000)
+
+
+class ConsultLeadRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    name: str | None = Field(default=None, max_length=200)
+    problem: str | None = Field(default=None, max_length=2000)
+    services: list[str] = []
+
+
+class CatalogService(BaseModel):
+    id: str
+    name: str
+    price_band: PriceBand
+    whats_included: list[str] = []
+
+
+class CatalogResponse(BaseModel):
+    count: int
+    services: list[CatalogService]
+
+
 # --- Day 4: observability / admin -------------------------------------------
 
 

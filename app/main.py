@@ -7,22 +7,29 @@ the agent is built lazily on top of it (and rebuilt after /ingest).
 """
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
 from . import __version__
 from .admin_page import ADMIN_HTML
 from .agent import Agent, AgentResult
 from .config import get_settings
+from .consult import ConsultAgent
 from .ingest import run_ingest
 from .limits import RateLimiter, enforce_demo_limits
 from .models import (
+    CatalogResponse,
+    CatalogService,
     ChatRequest,
     ChatResponse,
+    ConsultLeadRequest,
+    ConsultRequest,
+    ConsultResult,
     ConversationsResponse,
     HealthResponse,
     IngestResponse,
@@ -34,20 +41,28 @@ from .models import (
     RetrievedChunk,
 )
 from .retrieval import Retriever
+from .services_catalog import SERVICE_CATALOG
 from .tools import MockCRM
 from .traces import TraceStore
 from .vectorstore import LocalVectorStore
 
-# Module-level state for the single-process demo.
-_state: dict = {"retriever": None, "agent": None}
+# Module-level state for the single-process demo. Two corpora: the Nimbus support
+# index (/chat) and the services index (/consult, the landing-page consultant).
+_state: dict = {
+    "retriever": None,
+    "agent": None,
+    "services_retriever": None,
+    "consult_agent": None,
+}
 
 
-def _load_retriever_safely() -> Retriever | None:
+def _load_retriever_safely(index_path: Path | None = None) -> Retriever | None:
     settings = get_settings()
-    if not LocalVectorStore.exists(settings.index_path):
+    target = index_path or settings.index_path
+    if not LocalVectorStore.exists(target):
         return None
     try:
-        return Retriever.load(settings)
+        return Retriever.load(settings, index_path=target)
     except Exception:
         return None
 
@@ -64,10 +79,25 @@ def _get_agent() -> Agent | None:
     return _state["agent"]
 
 
+def _get_consult_agent() -> ConsultAgent | None:
+    """Build (and cache) the consultant agent on the services index. Returns None
+    if that index isn't built; raises if the LLM provider can't be built."""
+    if _state["consult_agent"] is not None:
+        return _state["consult_agent"]
+    retriever = _state["services_retriever"]
+    if retriever is None:
+        return None
+    _state["consult_agent"] = ConsultAgent.build(retriever, get_settings())
+    return _state["consult_agent"]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
     _state["retriever"] = _load_retriever_safely()
+    _state["services_retriever"] = _load_retriever_safely(settings.services_index_path)
     _state["agent"] = None
+    _state["consult_agent"] = None
     yield
 
 
@@ -150,10 +180,22 @@ def ingest() -> IngestResponse:
     settings = get_settings()
     try:
         stats = run_ingest(settings)
+        # Rebuild the services corpus too (best-effort: it may not exist on a
+        # fresh checkout, and the support demo shouldn't fail if it's missing).
+        try:
+            run_ingest(
+                settings,
+                kb_path=settings.services_kb_path,
+                index_path=settings.services_index_path,
+            )
+        except FileNotFoundError:
+            pass
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     _state["retriever"] = _load_retriever_safely()
+    _state["services_retriever"] = _load_retriever_safely(settings.services_index_path)
     _state["agent"] = None  # rebuild against the fresh index on next use
+    _state["consult_agent"] = None
     return IngestResponse(
         documents=stats.documents,
         chunks=stats.chunks,
@@ -231,6 +273,121 @@ def leads(limit: int = 20) -> LeadsResponse:
     settings = get_settings()
     events = MockCRM(settings.crm_path).recent(limit)
     return LeadsResponse(count=len(events), events=events)
+
+
+# --- Consult: the AI solutions consultant (v2 hero) -------------------------
+
+
+def _sse(event: str, data: dict) -> str:
+    """One Server-Sent-Events frame: an event name + a JSON data line."""
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@app.post("/consult/stream")
+def consult_stream(
+    req: ConsultRequest,
+    request: Request,
+    x_api_key: str | None = Header(default=None),
+) -> StreamingResponse:
+    """Stream the consultant's reasoning as named stages, then the structured
+    result, over SSE. The visitor watches it think, then gets the cards.
+
+    Guardrails are enforced pre-flight (real HTTP error before the stream opens);
+    failures mid-stream are surfaced as an `error` frame so the client always
+    gets a clean terminator."""
+    if _state["services_retriever"] is None:
+        raise HTTPException(
+            status_code=409,
+            detail="No services index loaded. POST /ingest first to build it.",
+        )
+    settings = get_settings()
+    store = TraceStore(settings.traces_path)
+    enforce_demo_limits(
+        ip=request.client.host if request.client else "unknown",
+        api_key=x_api_key,
+        settings=settings,
+        limiter=_rate_limiter,
+        store=store,
+    )
+    try:
+        agent = _get_consult_agent()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"LLM provider unavailable: {exc}") from exc
+    assert agent is not None
+
+    def gen():
+        result: ConsultResult | None = None
+        try:
+            for event, payload in agent.run_streamed(req.problem):
+                if event == "result" and isinstance(payload, ConsultResult):
+                    result = payload
+                    yield _sse("result", payload.model_dump())
+                elif isinstance(payload, dict):
+                    yield _sse(event, payload)
+            if result is not None:
+                try:  # best-effort trace; never break the stream on a write error
+                    store.record_consult(req.problem, result)
+                except Exception:
+                    pass
+        except Exception as exc:
+            yield _sse("error", {"detail": str(exc), "code": 500})
+        yield _sse("done", {})
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # disable nginx/proxy buffering of the stream
+        },
+    )
+
+
+@app.post("/consult/lead")
+def consult_lead(
+    req: ConsultLeadRequest,
+    request: Request,
+    x_api_key: str | None = Header(default=None),
+) -> dict:
+    """Capture a lead from the consultant CTA into the mock CRM. Free action, so
+    it's gated by the API key + rate limit but NOT the daily cost ceiling — we
+    never want to drop a lead because the LLM budget is spent."""
+    settings = get_settings()
+    if settings.demo_api_key and x_api_key != settings.demo_api_key:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+    ip = request.client.host if request.client else "unknown"
+    if not _rate_limiter.allow(ip):
+        raise HTTPException(
+            status_code=429,
+            detail="You're sending requests a bit fast — please wait a moment and try again.",
+            headers={"Retry-After": "30"},
+        )
+    fields: dict = {"email": req.email, "source": "consult"}
+    if req.name:
+        fields["name"] = req.name
+    if req.problem:
+        fields["problem"] = req.problem
+    if req.services:
+        fields["services"] = req.services
+    event = MockCRM(settings.crm_path, settings.crm_webhook_url).record("capture_lead", fields)
+    return {"id": event["id"], "status": "captured"}
+
+
+@app.get("/consult/catalog", response_model=CatalogResponse)
+def consult_catalog() -> CatalogResponse:
+    """The productized service catalog the consultant maps problems onto — lets
+    the front-end render fallback cards / suggestion chips without a model call."""
+    services = [
+        CatalogService(
+            id=c["id"],
+            name=c["name"],
+            price_band=c["price_band"],
+            whats_included=c["whats_included"],
+        )
+        for c in SERVICE_CATALOG
+    ]
+    return CatalogResponse(count=len(services), services=services)
 
 
 # --- Observability / admin (Day 4) ------------------------------------------

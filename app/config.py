@@ -100,6 +100,24 @@ class Settings(BaseSettings):
     # makes per-client keys / multi-tenant a small step later).
     demo_api_key: str | None = None
 
+    # --- Consultant agent (the pivot / v2 hero) -----------------------------
+    # A SECOND corpus, about the freelancer's OWN services, powers the
+    # landing-page "AI solutions consultant": it classifies a visitor's problem
+    # into the productized gigs and streams a tailored mini-proposal. Kept in its
+    # own dir/index so the Nimbus support corpus (and its tests) stay untouched.
+    services_kb_dir: str = "data/services_kb"
+    services_index_dir: str = "data/services_index"
+    # Token discipline: the services corpus is small, so a few well-matched chunks
+    # are plenty; a tighter per-source budget than /chat keeps the (uncached,
+    # per-call) input small without starving the fit_reason / solution.
+    consult_top_k: int = 4
+    consult_source_char_budget: int = 1200
+    # Output cap. The model only authors tailored prose now (restatement,
+    # fit_reasons, solution summary + steps) — facts are script-filled — so this
+    # can be modest.
+    consult_max_tokens: int = 1024
+    freelancer_name: str = "Chetan"
+
     def path(self, value: str) -> Path:
         p = Path(value)
         return p if p.is_absolute() else ROOT / p
@@ -119,6 +137,14 @@ class Settings(BaseSettings):
     @property
     def traces_path(self) -> Path:
         return self.path(self.traces_dir)
+
+    @property
+    def services_kb_path(self) -> Path:
+        return self.path(self.services_kb_dir)
+
+    @property
+    def services_index_path(self) -> Path:
+        return self.path(self.services_index_dir)
 
 
 @lru_cache

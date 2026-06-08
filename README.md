@@ -13,6 +13,13 @@ it at your own docs and it works the same way.
 
 ## Features
 
+- **The landing page is itself an AI agent.** An *AI solutions consultant*
+  (`POST /consult/stream`) takes a free-form problem, classifies it into the
+  productized services, answers grounded in a corpus about the work, **streams its
+  reasoning as named stages over SSE**, and returns a structured mini-proposal —
+  matched services, a tailored solution sketch, a rough timeline, and lead capture
+  + proof. The [`web/`](web/) Next.js + Tailwind front-end renders it; the demo
+  scoping your project is itself an example of the work. (Runs keyless too.)
 - **Grounded RAG answers with citations.** Retrieves the most relevant
   knowledge-base chunks and answers from them, citing sources inline.
 - **Real actions, not just chat.** A tool-calling agent can `capture_lead` and
@@ -66,7 +73,10 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
 | `POST /ingest` | (re)build the KB index from `data/kb/` |
 | `POST /query` | raw retrieval — top-k chunks for a query |
 | `GET /kb` | the documents the agent can answer from (titles + chunk counts) |
-| `POST /chat` | the agent — grounded answer + citations + actions |
+| `POST /chat` | the support agent — grounded answer + citations + actions |
+| `POST /consult/stream` | the AI solutions consultant — SSE staged reasoning, then a structured proposal |
+| `POST /consult/lead` | capture a lead from the consultant CTA into the mock CRM |
+| `GET /consult/catalog` | the productized service catalog the consultant maps onto |
 | `GET /leads` | recent leads / callbacks captured by the agent |
 | `GET /admin` | observability dashboard (cost, latency, conversation traces) |
 | `GET /admin/overview` | rollup: total/daily cost, tokens, escalation rate |
@@ -97,8 +107,10 @@ defaults run keyless):
 | `EMBEDDER` | `auto` | `auto` \| `fastembed` \| `openai` \| `hashing` |
 | `MIN_CONFIDENCE` | `0.15` | low-confidence escalation backstop |
 | `MAX_TOOL_ITERATIONS` | `4` | agent loop cap |
-| `CORS_ALLOW_ORIGINS` | `*` | comma-separated origins allowed to call the API |
-| `RATE_LIMIT_PER_MINUTE` | `20` | per-IP cap on `/chat` |
+| `CORS_ALLOW_ORIGINS` | `*` | comma-separated origins allowed to call the API (set to your front-end origin in prod) |
+| `FREELANCER_NAME` | `Chetan` | name the consultant introduces itself as |
+| `CONSULT_TOP_K` | `5` | services-corpus chunks retrieved per consultation |
+| `RATE_LIMIT_PER_MINUTE` | `20` | per-IP cap on `/chat` and `/consult/*` |
 | `DAILY_COST_CEILING_USD` | `5.0` | hard daily `/chat` spend cap (from recorded traces) |
 | `DEMO_API_KEY` | – | if set, `/chat` requires this `X-API-Key` header |
 
@@ -171,10 +183,26 @@ Run `make run` and open <http://127.0.0.1:8000/demo> (or `examples/embed-test.ht
 to see it live. The open demo is protected by a per-IP rate limit and a hard daily
 cost ceiling (`RATE_LIMIT_PER_MINUTE`, `DAILY_COST_CEILING_USD`).
 
+## Front-end (the consultant landing page)
+
+The consultant experience is a separate **Next.js + Tailwind** app in [`web/`](web/)
+that calls this backend directly over CORS (no proxy, so per-IP limits keep
+working). `make ingest` builds **both** corpora (Nimbus support + services); then:
+
+```bash
+cd web && npm install
+NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000 npm run dev   # http://localhost:3000
+```
+
+Deploy the front-end on Vercel and the backend on Railway/Fly/Render; set
+`NEXT_PUBLIC_API_BASE` to the backend origin and `CORS_ALLOW_ORIGINS` to the
+front-end origin. The vanilla portfolio + Nimbus widget stay served by FastAPI.
+
 ## Tests & CI
 
 The suite runs **keyless** — a deterministic fake provider stands in for the LLM,
 so `make test` (and CI on every push: install → ingest → pytest) needs no API key.
+The front-end has its own keyless component tests (`cd web && npm run test`).
 
 ## Deployment
 
